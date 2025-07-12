@@ -4,10 +4,18 @@
 #include "common.cpp"
 #include "window.cpp"
 
-struct MouseButton{
+struct MouseButton {
     bool leftIsPressed = false;
     bool rightIsPressed = false; 
     bool middleIsPressed = false;
+
+    bool leftWasPressed = false;
+    bool rightWasPressed = false;
+    bool middleWasPressed = false;
+
+    bool leftReleased = false;
+    bool rightReleased = false;
+    bool middleReleased = false;
 };
 
 struct InputState{
@@ -45,9 +53,28 @@ void InputHandler(InputState& state, Window& window) {
     uint32_t mouseButton = SDL_GetMouseState(&state.mousePosition.x, &state.mousePosition.y);
     SDL_GetRelativeMouseState(&state.mouseDelta.x, &state.mouseDelta.y);
 
-    state.mouseButtonStates.leftIsPressed  = mouseButton & SDL_BUTTON_LMASK;
-    state.mouseButtonStates.rightIsPressed = mouseButton & SDL_BUTTON_RMASK;
-    state.mouseButtonStates.middleIsPressed = mouseButton & SDL_BUTTON_MIDDLE;
+    // Save previous state
+    state.mouseButtonStates.leftWasPressed = state.mouseButtonStates.leftIsPressed;
+    state.mouseButtonStates.rightWasPressed = state.mouseButtonStates.rightIsPressed;
+    state.mouseButtonStates.middleWasPressed = state.mouseButtonStates.middleIsPressed;
+
+    state.mouseButtonStates.leftIsPressed   = (mouseButton & SDL_BUTTON_MASK(SDL_BUTTON_LEFT)) != 0;
+    state.mouseButtonStates.rightIsPressed  = (mouseButton & SDL_BUTTON_MASK(SDL_BUTTON_RIGHT)) != 0;
+    state.mouseButtonStates.middleIsPressed = (mouseButton & SDL_BUTTON_MASK(SDL_BUTTON_MIDDLE)) != 0;
+
+    // Detect release
+    state.mouseButtonStates.leftReleased = state.mouseButtonStates.leftWasPressed && !state.mouseButtonStates.leftIsPressed;
+    state.mouseButtonStates.rightReleased = state.mouseButtonStates.rightWasPressed && !state.mouseButtonStates.rightIsPressed;
+    state.mouseButtonStates.middleReleased = state.mouseButtonStates.middleWasPressed && !state.mouseButtonStates.middleIsPressed;
+
+    if (state.mouseButtonStates.rightIsPressed){
+        std::cout << "pressed" << std::endl;
+    }
+
+    if (state.mouseButtonStates.rightReleased){
+        std::cout << "released" << std::endl;
+    }
+
 
     state.inputVector.x = 0;
     state.inputVector.y = 0;
