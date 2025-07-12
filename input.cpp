@@ -7,6 +7,7 @@
 struct MouseButton{
     bool leftIsPressed = false;
     bool rightIsPressed = false; 
+    bool middleIsPressed = false;
 };
 
 struct InputState{
@@ -44,15 +45,9 @@ void InputHandler(InputState& state, Window& window) {
     uint32_t mouseButton = SDL_GetMouseState(&state.mousePosition.x, &state.mousePosition.y);
     SDL_GetRelativeMouseState(&state.mouseDelta.x, &state.mouseDelta.y);
 
-    state.mouseButtonStates.leftIsPressed = false;
-    if (mouseButton & SDL_BUTTON_LMASK){
-        state.mouseButtonStates.leftIsPressed =true;
-    }
-
-    state.mouseButtonStates.rightIsPressed = false;
-    if (mouseButton & SDL_BUTTON_RMASK){
-        state.mouseButtonStates.rightIsPressed = true;
-    }
+    state.mouseButtonStates.leftIsPressed  = mouseButton & SDL_BUTTON_LMASK;
+    state.mouseButtonStates.rightIsPressed = mouseButton & SDL_BUTTON_RMASK;
+    state.mouseButtonStates.middleIsPressed = mouseButton & SDL_BUTTON_MIDDLE;
 
     state.inputVector.x = 0;
     state.inputVector.y = 0;
