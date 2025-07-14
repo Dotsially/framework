@@ -82,5 +82,9 @@ void ShaderCreate(Shader* shader, std::string vertexPath, std::string fragmentPa
     glDeleteShader(fragmentShader);
 }
 
+void ShaderUse(Shader* shader){
+    glUseProgram(shader->programID);
+}
+
 
 #endif

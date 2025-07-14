@@ -23,14 +23,16 @@ struct InputState{
     glm::vec2 mouseDelta;
     glm::vec2 inputVector;
     MouseButton mouseButtonStates;
-    float mouseScroll;
     const bool* keystate;
+    float mouseScroll;
+    bool windowRezised = false;
 };
 
 
 void InputHandler(InputState& state, Window& window) {
     state.inputVector = glm::vec2(0);
     state.mouseScroll = 0;  // Reset scroll delta every frame
+    state.windowRezised = false;
 
     // Process all pending events
     while (SDL_PollEvent(&window.event)) {
@@ -40,6 +42,7 @@ void InputHandler(InputState& state, Window& window) {
                 break;
             case SDL_EVENT_WINDOW_RESIZED:
                 WindowResize(window);
+                state.windowRezised = true;
                 break;
             case SDL_EVENT_MOUSE_WHEEL:
                 state.mouseScroll += window.event.wheel.y;  // scroll up: +1, scroll down: -1
@@ -66,15 +69,6 @@ void InputHandler(InputState& state, Window& window) {
     state.mouseButtonStates.leftReleased = state.mouseButtonStates.leftWasPressed && !state.mouseButtonStates.leftIsPressed;
     state.mouseButtonStates.rightReleased = state.mouseButtonStates.rightWasPressed && !state.mouseButtonStates.rightIsPressed;
     state.mouseButtonStates.middleReleased = state.mouseButtonStates.middleWasPressed && !state.mouseButtonStates.middleIsPressed;
-
-    if (state.mouseButtonStates.rightIsPressed){
-        std::cout << "pressed" << std::endl;
-    }
-
-    if (state.mouseButtonStates.rightReleased){
-        std::cout << "released" << std::endl;
-    }
-
 
     state.inputVector.x = 0;
     state.inputVector.y = 0;
