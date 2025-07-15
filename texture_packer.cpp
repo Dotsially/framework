@@ -5,95 +5,86 @@
 
 #define PIXEL_SIZE 4
 
-struct TexturePacker{
+struct TexturePacker {
     uint8_t* memory;
-    std::unordered_map<std::string, glm::vec2> texturesIndex;
+    std::unordered_map<std::string, glm::vec4> texturesIndex; // x, y = UV offset; z, w = UV size
+
     uint32_t textureSize;
-    uint32_t textureInstanceSize;
-    uint32_t size;
-    uint32_t verticalSlot;
-    uint32_t horizontalSlot;
+    stbrp_context context;
+    stbrp_node* nodes;
 };
 
-/**
- *  size amount of textures in a column and row
- *  textureInstanceSize size of a single texture in pixels
- */
-void PackerInitialize(TexturePacker* packer, uint32_t size, uint32_t textureInstanceSize){
-    packer-> size = size;
-    packer-> textureInstanceSize = textureInstanceSize;
-    packer-> textureSize = size * textureInstanceSize; 
-    packer-> horizontalSlot = 0;
-    packer-> verticalSlot = 0;
+void PackerInitialize(TexturePacker* packer, uint32_t atlasSize){
+    packer->textureSize = atlasSize;
 
-    uint32_t textureByteSize = size*textureInstanceSize*size*textureInstanceSize*PIXEL_SIZE;
+    uint32_t textureByteSize = atlasSize * atlasSize * PIXEL_SIZE;
     packer->memory = (uint8_t*)calloc(textureByteSize, sizeof(uint8_t));
+
+    packer->nodes = (stbrp_node*)malloc(sizeof(stbrp_node) * atlasSize);
+    stbrp_init_target(&packer->context, atlasSize, atlasSize, packer->nodes, atlasSize);
 }
 
 
-void PackerInsertTexture(TexturePacker* packer, uint8_t* texture, std::string fileName){
+void PackerInsertTexture(TexturePacker* packer, uint8_t* texture, int width, int height, std::string fileName) {
+    stbrp_rect rect = {};
+    rect.id = 0;
+    rect.w = width;
+    rect.h = height;
 
-    if (packer->horizontalSlot == packer->size){
-        if (packer->verticalSlot + 1 < packer->size){
-            packer->horizontalSlot = 0;
-            packer->verticalSlot += 1;
-        }
-        else{
-            return;
-        }
+    stbrp_pack_rects(&packer->context, &rect, 1);
+
+    if (!rect.was_packed) {
+        std::cerr << "Failed to pack texture: " << fileName << std::endl;
+        return;
     }
 
-    uint32_t size = packer->textureInstanceSize;
-    uint32_t lastHeight = packer->verticalSlot * size;
-    uint32_t lastWidth = packer->horizontalSlot * size;
-
-    for(int x = lastHeight; x < (lastHeight+size); x++){
-        for(int y = lastWidth; y < (lastWidth+size); y++){
-            for(int i = 0; i < PIXEL_SIZE; i++){
-                packer->memory[(y*PIXEL_SIZE)+((x*PIXEL_SIZE)*128)+i] = 
-                    texture[((y-lastWidth)*PIXEL_SIZE)+(((x-lastHeight)*PIXEL_SIZE)*size)+i];       
-                }
-        }
+    // Copy pixel data into atlas memory
+    for (int y = 0; y < height; y++) {
+        memcpy(
+            &packer->memory[((rect.y + y) * packer->textureSize + rect.x) * PIXEL_SIZE],
+            &texture[(y * width) * PIXEL_SIZE],
+            width * PIXEL_SIZE
+        );
     }
 
+    // Extract base file name
     size_t slashPos = fileName.find_last_of('/');
+    if (slashPos == std::string::npos) slashPos = -1;
+    std::string textureName = fileName.substr(slashPos + 1);
 
-    if (slashPos == std::string::npos) slashPos = -1; // no slash
-
-    std::string blockName = fileName.substr(slashPos + 1, fileName.length());
-    std::cout << blockName << std::endl;
-
-    packer->texturesIndex[blockName].x = packer->horizontalSlot;
-    packer->texturesIndex[blockName].y = packer->verticalSlot;
-
-    packer->horizontalSlot += 1;
+    // Store UVs as normalized coordinates (x, y, w, h)
+    packer->texturesIndex[textureName] = glm::vec4(
+        (float)rect.x / packer->textureSize,
+        (float)rect.y / packer->textureSize,
+        (float)width / packer->textureSize,
+        (float)height / packer->textureSize
+    );
 }
 
 
-void PackerAddTexture(TexturePacker* packer, std::string fileName){
+void PackerAddTexture(TexturePacker* packer, std::string fileName) {
     std::string filePath = "resources/textures/" + fileName;
-    // load and generate the textures
-    int32_t width, height, nrChannels;
-    stbi_set_flip_vertically_on_load(true);  
-    uint8_t* texture = stbi_load(filePath.c_str(), &width, &height, &nrChannels, 0);
+
+    int width, height, channels;
+    stbi_set_flip_vertically_on_load(true);
+    uint8_t* texture = stbi_load(filePath.c_str(), &width, &height, &channels, PIXEL_SIZE);
 
     if (!texture) {
         std::cout << "Failed to load texture: " << filePath << "\n";
         return;
     }
 
-    PackerInsertTexture(packer, texture, fileName);
+    PackerInsertTexture(packer, texture, width, height, fileName);
     stbi_image_free(texture);
 }
 
-
-glm::vec2 PackerGetTexture(TexturePacker* packer, std::string fileName){
-    auto iterator = packer->texturesIndex.find(fileName);
-    if (iterator != packer->texturesIndex.end()) {
-        return iterator->second;
+glm::vec4 PackerGetTexture(TexturePacker* packer, std::string fileName) {
+    auto it = packer->texturesIndex.find(fileName);
+    if (it != packer->texturesIndex.end()) {
+        return it->second;
     } else {
         std::cerr << "Missing texture: " << fileName << std::endl;
-        return glm::vec2(0.0f);
+        return glm::vec4(0.0f);
     }
 }
 

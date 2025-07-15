@@ -2,6 +2,7 @@
 #define CAMERA
 
 #include "common.cpp"
+#include "window.cpp"
 
 struct Camera{
     glm::mat4 viewMatrix;
@@ -22,7 +23,7 @@ void CameraApplyMouseInput(Camera* camera, glm::vec2 mouseDelta) {
     camera->angle.y = glm::clamp(camera->angle.y, glm::radians(-89.0f), glm::radians(89.0f));
 }
 
-void CameraUpdate(Camera* camera, glm::vec3& targetPosition, float& mouseScroll){
+void CameraUpdate(Camera* camera, glm::vec2 windowDimensions, glm::vec3& targetPosition, float& mouseScroll){
     camera->zoomLevel -= mouseScroll;
     camera->zoomLevel = glm::clamp(camera->zoomLevel, camera->minZoom, camera->maxZoom);
     
@@ -32,7 +33,7 @@ void CameraUpdate(Camera* camera, glm::vec3& targetPosition, float& mouseScroll)
     camera->position.z = glm::cos(camera->angle.x) * camera->zoomLevel * glm::cos(camera->angle.y) + camera->target.z;
 
     camera->viewMatrix = glm::lookAt(camera->position, camera->target, glm::vec3(0, 1, 0));
-    camera->projectionMatrix = glm::perspective(camera->fov, 1280.0f/720.0f, 0.1f, 1000.0f);
+    camera->projectionMatrix = glm::perspective(camera->fov, windowDimensions.x/windowDimensions.y, 0.1f, 1000.0f);
 }
 
 glm::mat4 CameraViewProjectionMatrix(Camera* camera){
