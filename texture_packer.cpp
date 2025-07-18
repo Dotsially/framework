@@ -5,10 +5,14 @@
 
 #define PIXEL_SIZE 4
 
+struct TextureData{
+    glm::vec2 uvOffset;
+    glm::vec2 uvSize;
+};
+
 struct TexturePacker {
     uint8_t* memory;
-    std::unordered_map<std::string, glm::vec4> texturesIndex; // x, y = UV offset; z, w = UV size
-
+    std::unordered_map<std::string, TextureData> texturesIndex;
     uint32_t textureSize;
     stbrp_context context;
     stbrp_node* nodes;
@@ -52,15 +56,12 @@ void PackerInsertTexture(TexturePacker* packer, uint8_t* texture, int width, int
     if (slashPos == std::string::npos) slashPos = -1;
     std::string textureName = fileName.substr(slashPos + 1);
 
-    // Store UVs as normalized coordinates (x, y, w, h)
-    packer->texturesIndex[textureName] = glm::vec4(
-        (float)rect.x / packer->textureSize,
-        (float)rect.y / packer->textureSize,
-        (float)width / packer->textureSize,
-        (float)height / packer->textureSize
-    );
+    // Store TextureData
+    packer->texturesIndex[textureName] = {
+        {(float)rect.x / packer->textureSize, (float)rect.y / packer->textureSize },
+        {(float)width / packer->textureSize, (float)height / packer->textureSize }
+    };
 }
-
 
 void PackerAddTexture(TexturePacker* packer, std::string fileName) {
     std::string filePath = "resources/textures/" + fileName;
@@ -78,13 +79,14 @@ void PackerAddTexture(TexturePacker* packer, std::string fileName) {
     stbi_image_free(texture);
 }
 
-glm::vec4 PackerGetTexture(TexturePacker* packer, std::string fileName) {
+TextureData PackerGetTexture(TexturePacker* packer, std::string fileName) {
     auto it = packer->texturesIndex.find(fileName);
     if (it != packer->texturesIndex.end()) {
         return it->second;
     } else {
         std::cerr << "Missing texture: " << fileName << std::endl;
-        return glm::vec4(0.0f);
+        TextureData null = {};
+        return null;
     }
 }
 

@@ -13,6 +13,8 @@
 #define FLOATS_PER_VERTEX 5
 #define VERTEX_BUFFER_SIZE (MAX_HUD_QUADS * VERTICES_PER_QUAD * FLOATS_PER_VERTEX)
 
+struct HudItem;
+
 float quadVertices[] = {
     // positions         // texCoords
     -1.0f,  1.0f, 0.0f,  0.0f, 1.0f,
@@ -29,11 +31,14 @@ struct HudQuad {
     glm::vec2 size;
     glm::vec2 uvOffset; // (x, y)
     glm::vec2 uvSize;   // (w, h) normalized
-    glm::vec4 margins;
+    glm::vec4 marginsPixels;
+    glm::vec4 marginsScreens;
+    HudItem* parent = nullptr;
 };
 
-struct HudQuadState{
-    HudQuad* quad;
+struct HudItem{
+    std::vector<HudQuad*> quads;
+    
     bool isHovered = false;
     bool isPressed = false;
     bool isHeldDown = false;
@@ -51,6 +56,8 @@ struct Hud{
     float vertexBuffer[VERTEX_BUFFER_SIZE]; // CPU-side vertex data
     GLRenderObject batch;
     Shader batchShader;
+
+    std::vector<HudItem> hudItems;
 };
 
 void HudInitialize(Hud* hud, Window& window){
@@ -119,72 +126,153 @@ void HudResizeFramebuffer(Hud* hud, int32_t newWidth, int32_t newHeight) {
     glBindTexture(GL_TEXTURE_2D, 0);
 }
 
-void HudAddQuad(Hud* hud, glm::vec2 position, glm::vec2 size, glm::vec2 uvOffset, glm::vec2 uvSize) {
-    HudQuad quad = { position, size, uvOffset, uvSize };
-    hud->quads.push_back(quad);
+HudItem* HudAddItemQuad(Hud* hud, glm::vec2 position, glm::vec2 size, glm::vec2 uvOffset, glm::vec2 uvSize) {
+    //Create hud item
+    hud->hudItems.emplace_back();
+    HudItem* item = &hud->hudItems.back();
+
+    //Create hud quad
+    hud->quads.emplace_back(HudQuad{position, size, uvOffset, uvSize});
+    HudQuad* quad = &hud->quads.back();
+    quad->parent = item;
+
+    item->quads.push_back(quad);
+
+    return item;
 }
 
-void HudAddNineSliceQuad(Hud* hud, glm::vec2 position, glm::vec2 size, glm::vec2 uvOffset, glm::vec2 uvSize, glm::vec4 margins) {
-    float left = margins.x;
-    float right = margins.y;
-    float top = margins.z;
-    float bottom = margins.w;
+HudItem* HudAddItemNineSlice(Hud* hud, glm::vec2 position, glm::vec2 size, glm::vec2 uvOffset, glm::vec2 uvSize, glm::vec4 marginsPixels, glm::vec4 marginsScreen, uint32_t textureAtlasSize){
+    hud->hudItems.emplace_back();
+    HudItem* item = &hud->hudItems.back();
+
+    float left   = marginsScreen.x;
+    float right  = marginsScreen.y;
+    float top    = marginsScreen.z;
+    float bottom = marginsScreen.w;
 
     float x = position.x;
     float y = position.y;
     float w = size.x;
     float h = size.y;
 
-    float u0 = uvOffset.x;
-    float v0 = uvOffset.y;
-    float u1 = u0 + uvSize.x;
-    float v1 = v0 + uvSize.y;
+    // Convert pixel margins to UV margins
+    glm::vec4 uvMargins = {
+        marginsPixels.x / (float)textureAtlasSize,
+        marginsPixels.y / (float)textureAtlasSize,
+        marginsPixels.z / (float)textureAtlasSize,
+        marginsPixels.w / (float)textureAtlasSize
+    };
+
+    glm::vec2 uvMin = uvOffset;
+    glm::vec2 uvMax = uvOffset + uvSize;
+
+    float u0 = uvMin.x;
+    float u1 = u0 + uvMargins.x;
+    float u2 = uvMax.x - uvMargins.y;
+    float u3 = uvMax.x;
+
+    float v0 = uvMin.y;
+    float v1 = v0 + uvMargins.w;
+    float v2 = uvMax.y - uvMargins.z;
+    float v3 = uvMax.y;
+
+    float innerW = w - left - right;
+    float innerH = h - top - bottom;
+
+    auto addQuad = [&](glm::vec2 pos, glm::vec2 size, glm::vec2 uvStart, glm::vec2 uvSize, glm::vec4 marginsPixels, glm::vec4 marginsScreen) {
+        hud->quads.emplace_back(HudQuad{pos, size, uvStart, uvSize, marginsPixels, marginsScreen});
+        HudQuad* quad = &hud->quads.back();
+        quad->parent = item;
+        item->quads.push_back(quad);
+    };
 
     // Corners
-    HudAddQuad(hud, {x, y}, {left, bottom}, {u0, v0}, {left / w, bottom / h}); // Bottom-left
-    HudAddQuad(hud, {x + w - right, y}, {right, bottom}, {u1 - right / w, v0}, {right / w, bottom / h}); // Bottom-right
-    HudAddQuad(hud, {x, y + h - top}, {left, top}, {u0, v1 - top / h}, {left / w, top / h}); // Top-left
-    HudAddQuad(hud, {x + w - right, y + h - top}, {right, top}, {u1 - right / w, v1 - top / h}, {right / w, top / h}); // Top-right
+    addQuad({x, y}, {left, bottom}, {u0, v0}, {u1 - u0, v1 - v0}, marginsPixels, marginsScreen);
+    addQuad({x + w - right, y}, {right, bottom}, {u2, v0}, {u3 - u2, v1 - v0}, marginsPixels, marginsScreen);
+    addQuad({x, y + h - top}, {left, top}, {u0, v2}, {u1 - u0, v3 - v2}, marginsPixels, marginsScreen);
+    addQuad({x + w - right, y + h - top}, {right, top}, {u2, v2}, {u3 - u2, v3 - v2}, marginsPixels, marginsScreen);
 
     // Edges
-    HudAddQuad(hud, {x + left, y}, {w - left - right, bottom}, {u0 + left / w, v0}, {(w - left - right) / w, bottom / h}); // Bottom edge
-    HudAddQuad(hud, {x + left, y + h - top}, {w - left - right, top}, {u0 + left / w, v1 - top / h}, {(w - left - right) / w, top / h}); // Top edge
-    HudAddQuad(hud, {x, y + bottom}, {left, h - top - bottom}, {u0, v0 + bottom / h}, {left / w, (h - top - bottom) / h}); // Left edge
-    HudAddQuad(hud, {x + w - right, y + bottom}, {right, h - top - bottom}, {u1 - right / w, v0 + bottom / h}, {right / w, (h - top - bottom) / h}); // Right edge
+    addQuad({x + left, y}, {innerW, bottom}, {u1, v0}, {u2 - u1, v1 - v0}, marginsPixels, marginsScreen);
+    addQuad({x + left, y + h - top}, {innerW, top}, {u1, v2}, {u2 - u1, v3 - v2}, marginsPixels, marginsScreen);
+    addQuad({x, y + bottom}, {left, innerH}, {u0, v1}, {u1 - u0, v2 - v1}, marginsPixels, marginsScreen);
+    addQuad({x + w - right, y + bottom}, {right, innerH}, {u2, v1}, {u3 - u2, v2 - v1}, marginsPixels, marginsScreen);
 
     // Center
-    HudAddQuad(hud, {x + left, y + bottom}, {w - left - right, h - top - bottom}, {u0 + left / w, v0 + bottom / h}, {(w - left - right) / w, (h - top - bottom) / h});
+    addQuad({x + left, y + bottom}, {innerW, innerH}, {u1, v1}, {u2 - u1, v2 - v1}, marginsScreen, marginsPixels);
+
+    return item;
 }
 
-HudQuadState HudQuadGetState(Hud* hud, InputState& input, size_t quadIndex) {
-    HudQuadState quadState = {};
+void HudUpdateNineSliceTexture(HudItem* item, glm::vec2 uvOffset, glm::vec2& uvSize, uint32_t& textureAtlasSize) {
+    uint32_t count = 0;
+    for (HudQuad* quad : item->quads) {
+        // Convert pixel margins to UV margins (left, top, right, bottom)
+        glm::vec4 uvMargins = {
+            quad->marginsPixels.x / (float)textureAtlasSize, // left
+            quad->marginsPixels.y / (float)textureAtlasSize, // top
+            quad->marginsPixels.z / (float)textureAtlasSize, // right
+            quad->marginsPixels.w / (float)textureAtlasSize  // bottom
+        };
 
-    if (quadIndex >= hud->quads.size()) {
-        return quadState;
+        glm::vec2 uvMin = uvOffset;
+        glm::vec2 uvMax = uvOffset + uvSize;
+
+        // U coords
+        float u0 = uvMin.x;
+        float u1 = u0 + uvMargins.x;
+        float u2 = uvMax.x - uvMargins.z; // right margin is z
+        float u3 = uvMax.x;
+
+        // V coords
+        float v0 = uvMin.y;
+        float v1 = v0 + uvMargins.y; // top margin is y
+        float v2 = uvMax.y - uvMargins.w; // bottom margin is w
+        float v3 = uvMax.y;
+
+        switch (count) {
+            case 0: quad->uvOffset = { u0, v0 }; quad->uvSize = { u1 - u0, v1 - v0 }; break; // Bottom-left
+            case 1: quad->uvOffset = { u2, v0 }; quad->uvSize = { u3 - u2, v1 - v0 }; break; // Bottom-right
+            case 2: quad->uvOffset = { u0, v2 }; quad->uvSize = { u1 - u0, v3 - v2 }; break; // Top-left
+            case 3: quad->uvOffset = { u2, v2 }; quad->uvSize = { u3 - u2, v3 - v2 }; break; // Top-right
+            case 4: quad->uvOffset = { u1, v0 }; quad->uvSize = { u2 - u1, v1 - v0 }; break; // Bottom edge
+            case 5: quad->uvOffset = { u1, v2 }; quad->uvSize = { u2 - u1, v3 - v2 }; break; // Top edge
+            case 6: quad->uvOffset = { u0, v1 }; quad->uvSize = { u1 - u0, v2 - v1 }; break; // Left edge
+            case 7: quad->uvOffset = { u2, v1 }; quad->uvSize = { u3 - u2, v2 - v1 }; break; // Right edge
+            case 8: quad->uvOffset = { u1, v1 }; quad->uvSize = { u2 - u1, v2 - v1 }; break; // Center
+            default: break;
+        }
+        
+        count++;
     }
+}
 
-    HudQuad& quad = hud->quads[quadIndex];
-    quadState.quad = &quad;
-
+void HudUpdateItemState(Hud* hud, HudItem* item, InputState& input) {
     float mouseX = input.mousePosition.x;
-    float mouseY = hud->height - input.mousePosition.y;
+    float mouseY = hud->height - input.mousePosition.y; // Flip Y
 
-    float x1 = quad.position.x;
-    float y1 = quad.position.y;
-    float x2 = x1 + quad.size.x;
-    float y2 = y1 + quad.size.y;
+    for (HudQuad* quad : item->quads) {
+        float x1 = quad->position.x;
+        float y1 = quad->position.y;
+        float x2 = x1 + quad->size.x;
+        float y2 = y1 + quad->size.y;
 
-    quadState.isHovered =   mouseX >= x1 && mouseX <= x2 &&
-                            mouseY >= y1 && mouseY <= y2;
+        bool hovered = mouseX >= x1 && mouseX <= x2 &&
+                       mouseY >= y1 && mouseY <= y2;
 
-    quadState.isPressed =   quadState.isHovered && 
-                            input.mouseButtonStates.leftIsPressed &&
-                            !input.mouseButtonStates.leftWasPressed;
+        if (hovered) {
+            item->isHovered = true;
 
-    quadState.isHeldDown =  quadState.isHovered && 
-                            input.mouseButtonStates.leftIsPressed;
+            if (input.mouseButtonStates.leftIsPressed &&
+                !input.mouseButtonStates.leftWasPressed)
+                item->isPressed = true;
 
-    return quadState;
+            if (input.mouseButtonStates.leftIsPressed)
+                item->isHeldDown = true;
+
+            break; // No need to continue checking other quads if one is hovered
+        }
+    }
 }
 
 void HudDrawToFrameBuffer(Hud* hud, Texture& textureAtlas){
@@ -250,6 +338,7 @@ void HudDrawToFrameBuffer(Hud* hud, Texture& textureAtlas){
     glEnable(GL_DEPTH_TEST);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     
+    hud->hudItems.clear();
     hud->quads.clear();
 }
 
