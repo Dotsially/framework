@@ -29,7 +29,7 @@ void PackerInitialize(TexturePacker* packer, uint32_t atlasSize){
 }
 
 
-void PackerInsertTexture(TexturePacker* packer, uint8_t* texture, int width, int height, std::string fileName) {
+void PackerInsertTexture(TexturePacker* packer, uint8_t* texture, int32_t width, int32_t height, std::string fileName) {
     stbrp_rect rect = {};
     rect.id = 0;
     rect.w = width;

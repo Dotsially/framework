@@ -5,8 +5,8 @@
 #include "input.cpp"
 #include "window.cpp"
 #include "render.cpp"
-#include "shader.cpp"
-#include "texture.cpp"
+#include "framebuffer.cpp"
+#include "viewport.cpp"
 
 #define MAX_HUD_QUADS 1000
 #define VERTICES_PER_QUAD 6
@@ -14,17 +14,6 @@
 #define VERTEX_BUFFER_SIZE (MAX_HUD_QUADS * VERTICES_PER_QUAD * FLOATS_PER_VERTEX)
 
 struct HudItem;
-
-float quadVertices[] = {
-    // positions         // texCoords
-    -1.0f,  1.0f, 0.0f,  0.0f, 1.0f,
-     1.0f, -1.0f, 0.0f,  1.0f, 0.0f,
-    -1.0f, -1.0f, 0.0f,  0.0f, 0.0f,
-
-    -1.0f,  1.0f, 0.0f,  0.0f, 1.0f,
-     1.0f,  1.0f, 0.0f,  1.0f, 1.0f,
-     1.0f, -1.0f, 0.0f,  1.0f, 0.0f
-};
 
 struct HudQuad {
     glm::vec2 position;
@@ -45,51 +34,23 @@ struct HudItem{
 };
 
 struct Hud{
-    GLRenderObject renderable;
-    Shader shader;
-    Texture texture;
-    uint32_t framebufferID;
-    int32_t width;
-    int32_t height;
+    Viewport viewport;
+    uint32_t width;
+    uint32_t height;
 
     std::vector<HudQuad> quads;
-    float vertexBuffer[VERTEX_BUFFER_SIZE]; // CPU-side vertex data
+    std::vector<HudItem> hudItems;
+    std::vector<float> vertexBuffer; // CPU-side vertex data
     GLRenderObject batch;
     Shader batchShader;
-
-    std::vector<HudItem> hudItems;
 };
 
 void HudInitialize(Hud* hud, Window& window){
     hud->width = window.width;
     hud->height = window.height;
+    hud->vertexBuffer.resize(VERTEX_BUFFER_SIZE);
 
-    glGenVertexArrays(1, &hud->renderable.vao);
-    glGenBuffers(1, &hud->renderable.vbo);
-    GLBufferData(&hud->renderable, VERTEX_BUFFER, GL_STATIC_DRAW, quadVertices, sizeof(quadVertices), sizeof(quadVertices[0]));
-    GLAddAttribute(&hud->renderable, GL_FLOAT, 3, 5*sizeof(float), 0);
-    GLAddAttribute(&hud->renderable, GL_FLOAT, 2, 5*sizeof(float), 3*sizeof(float));
-
-    glGenFramebuffers(1, &hud->framebufferID);
-    glBindFramebuffer(GL_FRAMEBUFFER, hud->framebufferID);
-
-    glGenTextures(1, &hud->texture.textureID);
-    glBindTexture(GL_TEXTURE_2D, hud->texture.textureID);
-
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, hud->width, hud->height, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr); 
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, hud->texture.textureID, 0);
-    
-    // Check if framebuffer is complete
-    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
-        std::cerr << "ERROR::FRAMEBUFFER:: HUD Framebuffer is not complete!" << std::endl;
-    
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    glBindTexture(GL_TEXTURE_2D, 0);
+    ViewportInitialize(&hud->viewport, {hud->width, hud->height}, {0, 0});
 
     glGenVertexArrays(1, &hud->batch.vao);
     glGenBuffers(1, &hud->batch.vbo);
@@ -97,33 +58,15 @@ void HudInitialize(Hud* hud, Window& window){
     GLAddAttribute(&hud->batch, GL_FLOAT, 3, 5*sizeof(float), 0);
     GLAddAttribute(&hud->batch, GL_FLOAT, 2, 5*sizeof(float), 3*sizeof(float));
 
-    hud->shader = {};
-    ShaderCreate(&hud->shader, "hud/hud_vertex.glsl", "hud/hud_fragment.glsl");
     hud->batchShader = {};
     ShaderCreate(&hud->batchShader, "hud/hud_batch_vertex.glsl", "hud/hud_batch_fragment.glsl");
 }
 
-void HudResizeFramebuffer(Hud* hud, int32_t newWidth, int32_t newHeight) {
+void HudResizeFramebuffer(Hud* hud, uint32_t newWidth, uint32_t newHeight) {
     hud->width = newWidth;
     hud->height = newHeight;
 
-    glBindTexture(GL_TEXTURE_2D, hud->texture.textureID);
-
-    // Update the texture size
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, newWidth, newHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
-
-    // Reattach the texture to the framebuffer
-    glBindFramebuffer(GL_FRAMEBUFFER, hud->framebufferID);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, hud->texture.textureID, 0);
-
-    // Check if framebuffer is complete
-    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
-        std::cerr << "ERROR::FRAMEBUFFER:: HUD Framebuffer is not complete after resizing!" << std::endl;
-    }
-
-    // Unbind framebuffer and texture
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    glBindTexture(GL_TEXTURE_2D, 0);
+    ViewportUpdate(&hud->viewport, {hud->width, hud->height}, {0,0});
 }
 
 HudItem* HudAddItemQuad(Hud* hud, glm::vec2 position, glm::vec2 size, glm::vec2 uvOffset, glm::vec2 uvSize) {
@@ -275,8 +218,8 @@ void HudUpdateItemState(Hud* hud, HudItem* item, InputState& input) {
     }
 }
 
-void HudDrawToFrameBuffer(Hud* hud, Texture& textureAtlas){
-    glBindFramebuffer(GL_FRAMEBUFFER, hud->framebufferID);
+void HudDrawQuadsToFrameBuffer(Hud* hud, Texture& textureAtlas){
+    ViewportFramebufferBind(&hud->viewport);
     glViewport(0, 0, hud->width, hud->height);
 
     glClearColor(0, 0, 0, 0);
@@ -289,7 +232,8 @@ void HudDrawToFrameBuffer(Hud* hud, Texture& textureAtlas){
     glm::mat4 ortho = glm::ortho(0.0f, (float)hud->width, 0.0f, (float)hud->height);
     glUniformMatrix4fv(0, 1, GL_FALSE, glm::value_ptr(ortho));
 
-    float* bufferPtr = hud->vertexBuffer;
+    float* bufferPtr = hud->vertexBuffer.data();
+    size_t vertexIndex = 0;
     size_t quadCount = 0;
 
     for (const HudQuad& quad : hud->quads) {
@@ -305,55 +249,47 @@ void HudDrawToFrameBuffer(Hud* hud, Texture& textureAtlas){
         float u1 = u0 + quad.uvSize.x;
         float v1 = v0 + quad.uvSize.y;
 
-        float quadVerts[VERTICES_PER_QUAD * FLOATS_PER_VERTEX] = {
-            // positions     // texcoords
-            x,     y,     0.0f,  u0, v0, // bottom-left
-            x + w, y + h, 0.0f,  u1, v1, // top-right
-            x + w, y,     0.0f,  u1, v0, // bottom-right
+        // 6 vertices × 5 floats each = 30 floats per quad
+        float quadVertices[30] = {
+            // position         // texcoord
+            x,     y,     0.0f, u0, v0, // bottom-left
+            x + w, y + h, 0.0f, u1, v1, // top-right
+            x + w, y,     0.0f, u1, v0, // bottom-right
 
-            x,     y,     0.0f,  u0, v0, // bottom-left
-            x,     y + h, 0.0f,  u0, v1, // top-left
-            x + w, y + h, 0.0f,  u1, v1  // top-right
+            x,     y,     0.0f, u0, v0, // bottom-left
+            x,     y + h, 0.0f, u0, v1, // top-left
+            x + w, y + h, 0.0f, u1, v1  // top-right
         };
 
-        memcpy(bufferPtr, quadVerts, sizeof(quadVerts));
-        bufferPtr += sizeof(quadVerts) / sizeof(float);
+        // Copy directly into the preallocated vector buffer
+        for (int i = 0; i < 30; ++i) {
+            bufferPtr[vertexIndex++] = quadVertices[i];
+        }
+
         ++quadCount;
     }
 
-    // Upload batched buffer
+    // Upload only the used part of the buffer
+    size_t totalSize = vertexIndex * sizeof(float);
+
     glBindVertexArray(hud->batch.vao);
-    size_t totalSize = quadCount * VERTICES_PER_QUAD * FLOATS_PER_VERTEX * sizeof(float);
     glBindBuffer(GL_ARRAY_BUFFER, hud->batch.vbo);
-    glBufferSubData(GL_ARRAY_BUFFER, 0, totalSize, hud->vertexBuffer);
-    
+    glBufferSubData(GL_ARRAY_BUFFER, 0, totalSize, hud->vertexBuffer.data());
 
     ShaderUse(&hud->batchShader);
-    GLDraw(&hud->batch, DRAW_ARRAY, GL_TRIANGLES, quadCount * VERTICES_PER_QUAD);
-
-    
+    GLDraw(&hud->batch, DRAW_ARRAY, GL_TRIANGLES, quadCount * VERTICES_PER_QUAD);    
     glBindVertexArray(0);
 
     // Restore state
     glEnable(GL_DEPTH_TEST);
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    ViewportFramebufferUnbind(&hud->viewport);
     
     hud->hudItems.clear();
     hud->quads.clear();
 }
 
-
 void HudDraw(Hud* hud){
-    glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    glDisable(GL_DEPTH_TEST);  // Make sure it draws over everything
-    
-    ShaderUse(&hud->shader);
-    TextureUse(&hud->texture, GL_TEXTURE0);
-    GLDraw(&hud->renderable, DRAW_ARRAY, GL_TRIANGLES, 6);
-
-    glEnable(GL_DEPTH_TEST);  // Restore for next frame
-    glDisable(GL_BLEND);
+    ViewportDraw(&hud->viewport);
 }
 
 
