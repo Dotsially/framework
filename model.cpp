@@ -13,9 +13,7 @@
 // - Material support
 // - Smart drawing of same materials
 struct Model{
-    std::vector<Bone> bones;
-    std::unordered_map<std::string, std::uint8_t> boneIDs;
-    std::vector<glm::mat4> boneTransforms;
+    BoneData boneData;
     Mesh mesh;
 };
 
@@ -85,7 +83,7 @@ void ModelLoad(Model* model, std::string fileName){
 
 
 void ModelLoadBones(Model* model, nlohmann::json* bones){
-    model->bones.resize(bones->size());
+    model->boneData.bones.resize(bones->size());
 
     for(int i = 0; i < bones->size(); i++){
         Bone bone = {};
@@ -98,12 +96,12 @@ void ModelLoadBones(Model* model, nlohmann::json* bones){
         bone.position = glm::vec3(0);
         bone.rotation = glm::quat(glm::vec3(0));
 
-        model->boneIDs[bone.name] = i;
-        model->bones[i] = bone;
+        model->boneData.boneIDs[bone.name] = i;
+        model->boneData.bones[i] = bone;
         
         if (!(*bones)[i]["parent"].is_null()){
-            model->bones[i].parent = &model->bones[model->boneIDs[(*bones)[i]["parent"]]];
-            model->bones[i].parent->children.push_back(&model->bones[i]);
+            model->boneData.bones[i].parent = &model->boneData.bones[model->boneData.boneIDs[(*bones)[i]["parent"]]];
+            model->boneData.bones[i].parent->children.push_back(&model->boneData.bones[i]);
         }
     }
 }
@@ -123,7 +121,7 @@ void ModelLoadSkinned(Model* model, std::string fileName){
     if(!jsonBones.is_array()) return;
     ModelLoadBones(model, &jsonBones);
 
-    model->boneTransforms.resize(model->bones.size());
+    model->boneData.transforms.resize(model->boneData.bones.size());
 
     json jsonVertices = data["vertices"];
     if(!jsonVertices.is_array()) return;
@@ -169,7 +167,7 @@ void ModelLoadSkinned(Model* model, std::string fileName){
             glm::vec4 weights = glm::vec4(-1);
 
             for(int k = 0; k < jsonVertexGroups[idx].size(); k++){
-                boneIDS[k] = model->boneIDs[jsonVertexGroups[idx][k]];
+                boneIDS[k] = model->boneData.boneIDs[jsonVertexGroups[idx][k]];
             }
 
             for(int k = 0; k < jsonWeights[idx].size(); k++){
@@ -201,47 +199,21 @@ void ModelLoadSkinned(Model* model, std::string fileName){
 }
 
 
-void ModelAnimate(Model* model, Animation* animation, uint64_t tick) {
-    for (const auto& [bone, index] : model->boneIDs) {
-        const auto& keyframes = animation->boneIndex[bone];
-        int frameCount = keyframes.size();
+void ModelAnimate(Model* model, AnimationManager* animationManager, std::string animationName, uint64_t TICK_COUNTER) {
+    std::vector<AnimationBone> animationBones = AnimationFrameGet(animationManager, animationName, TICK_COUNTER);
 
-        if (frameCount < 2){
-            if (keyframes.size() < 1) continue;
-            model->bones[index].position = keyframes[0].position;
-            model->bones[index].rotation = keyframes[0].rotation;
-            continue;
-        }
-
-        int animationLength = keyframes[frameCount - 1].frameTime;
-        uint64_t timeInCycle = tick % animationLength;
-
-        int frameIndex = 0;
-        while (frameIndex < frameCount - 1 && keyframes[frameIndex + 1].frameTime <= timeInCycle) {
-            ++frameIndex;
-        }
-
-        const AnimationBone& currentFrame = keyframes[frameIndex];
-        const AnimationBone& nextFrame = keyframes[(frameIndex + 1) % frameCount];
-
-        int startTime = currentFrame.frameTime;
-        int endTime = nextFrame.frameTime;
-
-        if (endTime <= startTime) {
-            endTime += animationLength;
-        }
-
-        float t = float(timeInCycle - startTime) / float(endTime - startTime);
-
-        model->bones[index].position = glm::mix(currentFrame.position, nextFrame.position, t);
-        model->bones[index].rotation = glm::slerp(currentFrame.rotation, nextFrame.rotation, t);
+    for(int i = 0; i < animationBones.size(); ++i){
+        Bone* bone = BoneGet(&model->boneData, animationBones[i].name);
+        bone->position = animationBones[i].position;
+        bone->rotation = animationBones[i].rotation;
+        bone->scale = animationBones[i].scale;    
     }
 
-    BoneCalculateTransforms(&model->bones, &model->boneTransforms, &model->boneIDs);
+    BoneCalculateTransforms(&model->boneData);
 }
 
 void ModelSkinnedDraw(Model* model, glm::mat4& projectionView,  glm::mat4& transform){
-    glUniformMatrix4fv(2, model->boneTransforms.size(), GL_FALSE, glm::value_ptr(model->boneTransforms[0]));
+    glUniformMatrix4fv(2, model->boneData.transforms.size(), GL_FALSE, glm::value_ptr(model->boneData.transforms[0]));
     MeshDraw(&model->mesh, projectionView, transform);
 }
 

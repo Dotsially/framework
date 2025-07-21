@@ -5,6 +5,8 @@
 
 struct Texture{
     uint32_t textureID;
+    uint32_t width;
+    uint32_t height;
 };
 
 void TextureFromFile(Texture* texture, const std::string& fileName){
@@ -27,6 +29,8 @@ void TextureFromFile(Texture* texture, const std::string& fileName){
         return;
     }
 
+    texture->width = width;
+    texture->height = height;
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
     glGenerateMipmap(GL_TEXTURE_2D);
     glBindTexture(GL_TEXTURE_2D, 0);
@@ -34,6 +38,9 @@ void TextureFromFile(Texture* texture, const std::string& fileName){
 }
 
 void TextureFromMemory(Texture* texture, uint8_t* textureData, uint32_t width, uint32_t height){
+    texture->width = width;
+    texture->height = height;
+    
     glGenTextures(1, &texture->textureID);
     glBindTexture(GL_TEXTURE_2D, texture->textureID); 
 

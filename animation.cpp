@@ -2,55 +2,128 @@
 #define ANIMATION
 
 #include "common.cpp"
+#include "math.cpp"
+
 
 struct AnimationBone{
+    std::string name;
     glm::vec3 position;
     glm::quat rotation;
     glm::vec3 scale;
-    int32_t frameTime;
 };
 
+struct AnimationFrame{
+    uint32_t frameTime;
+    std::vector<AnimationBone> bones;
+};
 
 struct Animation{
-    std::unordered_map<std::string, std::vector<AnimationBone>> boneIndex;
+    std::string name;
+    std::vector<AnimationFrame> frames;
 };
 
+struct AnimationManager{
+    std::unordered_map<std::string, Animation> animations;
+};
 
-void AnimationLoad(Animation* animation, std::string fileName){
+void AnimationLoad(AnimationManager* animationManager, const std::string& fileName){
     using json = nlohmann::json;
     std::string filePath = "resources/animations/" + fileName;
 
-    std::fstream file(filePath);
+    std::ifstream file(filePath);
     json data = json::parse(file);
 
-    for (const auto& [bone, frames] : data.items()) {
-        if(!frames.is_array()) break;
-        animation->boneIndex[bone].resize(frames.size());
+    Animation animation = {};
 
-        for(int i = 0; i < frames.size(); i++){
-            AnimationBone frameData;
-            frameData.frameTime = frames[i]["frame_number"];
+    animation.name = data["name"];
 
-            frameData.position.x = frames[i]["position"][0];
-            frameData.position.y = frames[i]["position"][1];
-            frameData.position.z = frames[i]["position"][2];
-            
-            frameData.rotation.w = frames[i]["rotation"][0];
-            frameData.rotation.x = frames[i]["rotation"][1];
-            frameData.rotation.y = frames[i]["rotation"][2];
-            frameData.rotation.z = frames[i]["rotation"][3];
+    for (const auto& frame : data["frames"]) {
+        AnimationFrame animationFrame = {};
+        animationFrame.frameTime = frame["frame_number"];
+        const auto& bones = frame["bones"];
 
-            frameData.scale.x = frames[i]["scale"][0];
-            frameData.scale.y = frames[i]["scale"][1];
-            frameData.scale.z = frames[i]["scale"][2];
+        for (auto& [boneName, boneData] : bones.items()) {
+            AnimationBone frameData = {};
+            frameData.name = boneName;
 
-            animation->boneIndex[bone][i] = frameData;
+            frameData.position = {
+                boneData["position"][0],
+                boneData["position"][1],
+                boneData["position"][2]
+            };
+
+            frameData.rotation = glm::quat(
+                boneData["rotation"][0],
+                boneData["rotation"][1],
+                boneData["rotation"][2],
+                boneData["rotation"][3]
+            );
+
+            frameData.scale = {
+                boneData["scale"][0],
+                boneData["scale"][1],
+                boneData["scale"][2]
+            };
+
+            animationFrame.bones.push_back(frameData);
         }
+        
+        animation.frames.push_back(animationFrame);
     }
+
+    animationManager->animations[animation.name] = animation;
 }
 
+// Returns the interpolated bone positions on certain timestep 
+std::vector<AnimationBone> AnimationFrameGet(AnimationManager* animationManager, const std::string& animationName, uint64_t TICK_COUNTER) {
+    std::vector<AnimationBone> result;
 
+    auto iterator = animationManager->animations.find(animationName);
+    if (iterator == animationManager->animations.end()) return result;
 
+    const Animation& animation = iterator->second;
 
+    if (animation.frames.size() < 2) return result;
+
+    // Find current frame
+    const AnimationFrame* frameA = nullptr;
+    const AnimationFrame* frameB = nullptr;
+
+    uint32_t frameTick = TICK_COUNTER % animation.frames.back().frameTime;
+    for (int i = 0; i < animation.frames.size() - 1; ++i) {
+        if (frameTick >= animation.frames[i].frameTime && frameTick < animation.frames[i + 1].frameTime) {
+            frameA = &animation.frames[i];
+            frameB = &animation.frames[i + 1];
+            break;
+        }
+    }
+
+    if (!frameA || !frameB) {
+        // Loop from last frame to first frame
+        frameA = &animation.frames.back();
+        frameB = &animation.frames.front();
+        frameTick = 0; // You may want to adjust this based on actual time logic
+    }
+
+    float duration = float(frameB->frameTime - frameA->frameTime);
+    float timeIntoFrame = float(frameTick - frameA->frameTime);
+    float t = duration > 0 ? timeIntoFrame / duration : 0.0f;
+
+    // Interpolate bones
+    for (int i = 0; i < frameA->bones.size(); ++i) {
+        const auto& boneA = frameA->bones[i];
+        const auto& boneB = frameB->bones[i];
+
+        AnimationBone blended;
+        blended.name = boneA.name;
+        blended.position = Lerp(boneA.position, boneB.position, t);
+        blended.rotation = Slerp(boneA.rotation, boneB.rotation, t);
+        blended.scale = Lerp(boneA.scale, boneB.scale, t);
+
+        result.push_back(blended);
+    }
+
+    return result;
+}
 
 #endif

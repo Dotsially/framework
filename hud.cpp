@@ -7,6 +7,7 @@
 #include "render.cpp"
 #include "framebuffer.cpp"
 #include "viewport.cpp"
+#include "bitmap.cpp"
 
 #define MAX_HUD_QUADS 1000
 #define VERTICES_PER_QUAD 6
@@ -190,6 +191,41 @@ void HudUpdateNineSliceTexture(HudItem* item, glm::vec2 uvOffset, glm::vec2& uvS
     }
 }
 
+HudItem* HudRenderText(Hud* hud, BitmapFont* font, const std::string& text, glm::vec2 position, float scale = 1.0f, float spacing = 0.0f) {
+    glm::vec2 cursor = position;
+
+    // Create one item to contain all quads for this text
+    hud->hudItems.emplace_back();
+    HudItem* item = &hud->hudItems.back();
+
+    for (char c : text) {
+        // Skip unsupported characters
+        auto it = font->glyphs.find(c);
+        if (it == font->glyphs.end())
+            continue;
+
+        const BitmapGlyph& glyph = it->second;
+
+        glm::vec2 glyphSize = glyph.size * scale;
+
+        hud->quads.emplace_back(HudQuad{
+            cursor,                 // Position
+            glyphSize,             // Size
+            glyph.uvOffset,        // UV offset
+            glyph.uvSize           // UV size
+        });
+
+        HudQuad* quad = &hud->quads.back();
+        quad->parent = item;
+        item->quads.push_back(quad);
+
+        // Advance cursor by glyph width + spacing
+        cursor.x += glyphSize.x + spacing * scale;
+    }
+
+    return item;
+}
+
 void HudUpdateItemState(Hud* hud, HudItem* item, InputState& input) {
     float mouseX = input.mousePosition.x;
     float mouseY = hud->height - input.mousePosition.y; // Flip Y
@@ -224,7 +260,11 @@ void HudDrawQuadsToFrameBuffer(Hud* hud, Texture& textureAtlas){
 
     glClearColor(0, 0, 0, 0);
     glClear(GL_COLOR_BUFFER_BIT);
+
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glDisable(GL_DEPTH_TEST);
+
 
     ShaderUse(&hud->batchShader);
     TextureUse(&textureAtlas, GL_TEXTURE0);
@@ -282,6 +322,7 @@ void HudDrawQuadsToFrameBuffer(Hud* hud, Texture& textureAtlas){
 
     // Restore state
     glEnable(GL_DEPTH_TEST);
+    glDisable(GL_BLEND);
     ViewportFramebufferUnbind(&hud->viewport);
     
     hud->hudItems.clear();

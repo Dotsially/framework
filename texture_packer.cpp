@@ -8,6 +8,7 @@
 struct TextureData{
     glm::vec2 uvOffset;
     glm::vec2 uvSize;
+    glm::vec2 textureSize;
 };
 
 struct TexturePacker {
@@ -59,7 +60,8 @@ void PackerInsertTexture(TexturePacker* packer, uint8_t* texture, int32_t width,
     // Store TextureData
     packer->texturesIndex[textureName] = {
         {(float)rect.x / packer->textureSize, (float)rect.y / packer->textureSize },
-        {(float)width / packer->textureSize, (float)height / packer->textureSize }
+        {(float)width / packer->textureSize, (float)height / packer->textureSize },
+        {width, height}
     };
 }
 
