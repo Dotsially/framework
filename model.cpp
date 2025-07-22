@@ -95,6 +95,7 @@ void ModelLoadBones(Model* model, nlohmann::json* bones){
         
         bone.position = glm::vec3(0);
         bone.rotation = glm::quat(glm::vec3(0));
+        bone.scale = glm::vec3(1);
 
         model->boneData.boneIDs[bone.name] = i;
         model->boneData.bones[i] = bone;
