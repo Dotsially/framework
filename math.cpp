@@ -3,11 +3,13 @@
 
 #include "common.cpp"
 
-float Min(const float& a, const float& b) {
+template <typename T>
+const T& Min(const T& a, const T& b) {
     return (a <= b) ? a : b;
 }
 
-float Max(const float& a, const float& b) {
+template <typename T>
+const T& Max(const T& a, const T& b) {
     return (a >= b) ? a : b;
 }
 

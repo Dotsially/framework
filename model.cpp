@@ -205,6 +205,8 @@ void ModelAnimate(Model* model, AnimationManager* animationManager, std::string 
 
     for(int i = 0; i < animationBones.size(); ++i){
         Bone* bone = BoneGet(&model->boneData, animationBones[i].name);
+        if(!bone) continue;
+        
         bone->position = animationBones[i].position;
         bone->rotation = animationBones[i].rotation;
         bone->scale = animationBones[i].scale;    

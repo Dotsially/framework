@@ -74,7 +74,6 @@ void AnimationLoad(AnimationManager* animationManager, const std::string& fileNa
     animationManager->animations[animation.name] = animation;
 }
 
-// Returns the interpolated bone positions on certain timestep 
 std::vector<AnimationBone> AnimationFrameGet(AnimationManager* animationManager, const std::string& animationName, uint64_t TICK_COUNTER) {
     std::vector<AnimationBone> result;
 
@@ -83,7 +82,11 @@ std::vector<AnimationBone> AnimationFrameGet(AnimationManager* animationManager,
 
     const Animation& animation = iterator->second;
 
-    if (animation.frames.size() < 2) return result;
+    if (animation.frames.size() == 0) {
+        return result;
+    } else if (animation.frames.size() == 1) {
+        return animation.frames[0].bones; // Return the single frame
+    }
 
     // Find current frame
     const AnimationFrame* frameA = nullptr;
@@ -102,7 +105,7 @@ std::vector<AnimationBone> AnimationFrameGet(AnimationManager* animationManager,
         // Loop from last frame to first frame
         frameA = &animation.frames.back();
         frameB = &animation.frames.front();
-        frameTick = 0; // You may want to adjust this based on actual time logic
+        frameTick = 0; // Adjust as needed
     }
 
     float duration = float(frameB->frameTime - frameA->frameTime);
