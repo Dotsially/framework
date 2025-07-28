@@ -17,13 +17,33 @@ struct Model{
     Mesh mesh;
 };
 
-// struct ModelLibrary{
-//     std::vector<Model> models;
-//     std::unordered_map<std::string, std::uint16_t> modelIDs;
-// };
+struct ModelLibrary{
+    std::vector<Model> models;
+    std::unordered_map<std::string, std::uint32_t> modelIDs;
+};
 
+void ModelLibraryAdd(ModelLibrary* modelLibrary, Model* model, std::string fileName){
+    size_t slashPos = fileName.find_last_of('/');
+    if (slashPos == std::string::npos) slashPos = -1;
 
-void ModelLoad(Model* model, std::string fileName){
+    size_t prefixPos = fileName.find('.', slashPos + 1);
+    if (prefixPos == std::string::npos) prefixPos = fileName.size();
+
+    std::string modelName = fileName.substr(slashPos + 1, prefixPos - (slashPos + 1));
+
+    if (modelLibrary->modelIDs.find(modelName) == modelLibrary->modelIDs.end()) {
+        modelLibrary->modelIDs[modelName] = modelLibrary->models.size();
+        modelLibrary->models.push_back(*model);
+    }
+    else{
+        uint32_t modelIndex = modelLibrary->modelIDs[modelName];
+        MeshFree(&modelLibrary->models[modelIndex].mesh);
+        modelLibrary->models[modelIndex] = *model;
+    }
+}
+
+void ModelLoad(ModelLibrary* modelLibrary, std::string fileName){
+    Model model = {};
     using json = nlohmann::json;
     std::string filePath = "resources/models/" + fileName;
 
@@ -78,7 +98,8 @@ void ModelLoad(Model* model, std::string fileName){
         vertexOffset += numVertsInFace;
     }
 
-    MeshInitialize(&model->mesh, vertices.data(), vertices.size(), indices.data(), indices.size());
+    MeshInitialize(&model.mesh, vertices.data(), vertices.size(), indices.data(), indices.size());
+    ModelLibraryAdd(modelLibrary, &model, fileName);
 }
 
 
@@ -108,7 +129,9 @@ void ModelLoadBones(Model* model, nlohmann::json* bones){
 }
 
 
-void ModelLoadSkinned(Model* model, std::string fileName){
+void ModelLoadSkinned(ModelLibrary* modelLibrary, std::string fileName){
+    Model model = {};
+
     using json = nlohmann::json;
     std::string filePath = "resources/models/" + fileName;
 
@@ -120,9 +143,9 @@ void ModelLoadSkinned(Model* model, std::string fileName){
     
     json jsonBones = data["bones"];
     if(!jsonBones.is_array()) return;
-    ModelLoadBones(model, &jsonBones);
+    ModelLoadBones(&model, &jsonBones);
 
-    model->boneData.transforms.resize(model->boneData.bones.size());
+    model.boneData.transforms.resize(model.boneData.bones.size());
 
     json jsonVertices = data["vertices"];
     if(!jsonVertices.is_array()) return;
@@ -168,7 +191,7 @@ void ModelLoadSkinned(Model* model, std::string fileName){
             glm::vec4 weights = glm::vec4(-1);
 
             for(int k = 0; k < jsonVertexGroups[idx].size(); k++){
-                boneIDS[k] = model->boneData.boneIDs[jsonVertexGroups[idx][k]];
+                boneIDS[k] = model.boneData.boneIDs[jsonVertexGroups[idx][k]];
             }
 
             for(int k = 0; k < jsonWeights[idx].size(); k++){
@@ -196,7 +219,8 @@ void ModelLoadSkinned(Model* model, std::string fileName){
         vertexOffset += numVertsInFace;
     }
 
-    MeshSkinnedInitialize(&model->mesh, vertices.data(), vertices.size(), indices.data(), indices.size());
+    MeshSkinnedInitialize(&model.mesh, vertices.data(), vertices.size(), indices.data(), indices.size());
+    ModelLibraryAdd(modelLibrary, &model, fileName);
 }
 
 
@@ -218,6 +242,13 @@ void ModelAnimate(Model* model, AnimationManager* animationManager, std::string 
 void ModelSkinnedDraw(Model* model, glm::mat4& projectionView,  glm::mat4& transform){
     glUniformMatrix4fv(2, model->boneData.transforms.size(), GL_FALSE, glm::value_ptr(model->boneData.transforms[0]));
     MeshDraw(&model->mesh, projectionView, transform);
+}
+
+Model* ModelGet(ModelLibrary* modelLibrary, std::string modelName){
+    auto it = modelLibrary->modelIDs.find(modelName);
+    if (it == modelLibrary->modelIDs.end()) return nullptr;
+
+    return &modelLibrary->models[it->second];
 }
 
 #endif

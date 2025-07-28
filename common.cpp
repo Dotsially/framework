@@ -12,6 +12,7 @@
 #include <sstream>
 #include <stdint.h>
 #include <chrono>
+#include <random>
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/glm.hpp>
 #include <glm/gtx/hash.hpp>
