@@ -90,6 +90,8 @@ HudItem* HudAddItemQuad(Hud* hud, glm::vec2 position, glm::vec2 size, glm::vec2 
     return item;
 }
 
+// marginPixels: amount of pixels in the texture for 9-slice
+// marginScreen: size of margin texture on screen
 HudItem* HudAddItemNineSlice(Hud* hud, glm::vec2 position, glm::vec2 size, glm::vec2 uvOffset, glm::vec2 uvSize, glm::vec4 marginsPixels, glm::vec4 marginsScreen, uint32_t textureAtlasSize, int32_t layer = 0){
     hud->hudItems.emplace_back();
     HudItem* item = &hud->hudItems.back();

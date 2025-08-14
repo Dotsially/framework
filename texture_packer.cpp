@@ -14,13 +14,13 @@ struct TextureData{
 struct TexturePacker {
     uint8_t* memory;
     std::unordered_map<std::string, TextureData> texturesIndex;
-    uint32_t textureSize;
+    uint32_t atlasSize;
     stbrp_context context;
     stbrp_node* nodes;
 };
 
 void PackerInitialize(TexturePacker* packer, uint32_t atlasSize){
-    packer->textureSize = atlasSize;
+    packer->atlasSize = atlasSize;
 
     uint32_t textureByteSize = atlasSize * atlasSize * PIXEL_SIZE;
     packer->memory = (uint8_t*)calloc(textureByteSize, sizeof(uint8_t));
@@ -46,7 +46,7 @@ void PackerInsertTexture(TexturePacker* packer, uint8_t* texture, int32_t width,
     // Copy pixel data into atlas memory
     for (int y = 0; y < height; y++) {
         memcpy(
-            &packer->memory[((rect.y + y) * packer->textureSize + rect.x) * PIXEL_SIZE],
+            &packer->memory[((rect.y + y) * packer->atlasSize + rect.x) * PIXEL_SIZE],
             &texture[(y * width) * PIXEL_SIZE],
             width * PIXEL_SIZE
         );
@@ -59,8 +59,8 @@ void PackerInsertTexture(TexturePacker* packer, uint8_t* texture, int32_t width,
 
     // Store TextureData
     packer->texturesIndex[textureName] = {
-        {(float)rect.x / packer->textureSize, (float)rect.y / packer->textureSize },
-        {(float)width / packer->textureSize, (float)height / packer->textureSize },
+        {(float)rect.x / packer->atlasSize, (float)rect.y / packer->atlasSize },
+        {(float)width / packer->atlasSize, (float)height / packer->atlasSize },
         {width, height}
     };
 }

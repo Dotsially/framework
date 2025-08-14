@@ -13,6 +13,7 @@
 #include <stdint.h>
 #include <chrono>
 #include <random>
+#include <functional>
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/glm.hpp>
 #include <glm/gtx/hash.hpp>
@@ -30,6 +31,7 @@
 #include <unordered_set>
 #include <set>
 #include <queue>
+
 #include <nlohmann/json.hpp>
 
 #define STB_IMAGE_IMPLEMENTATION

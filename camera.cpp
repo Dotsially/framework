@@ -12,7 +12,7 @@ struct Camera{
     glm::vec2 angle;
     float zoomLevel = 3.0f;
     float minZoom = 0.01f;
-    float maxZoom = 6.0f;
+    float maxZoom = 10.0f;
     float fov = glm::radians(70.0f);
 };
 

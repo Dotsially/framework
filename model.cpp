@@ -102,7 +102,6 @@ void ModelLoad(ModelLibrary* modelLibrary, std::string fileName){
     ModelLibraryAdd(modelLibrary, &model, fileName);
 }
 
-
 void ModelLoadBones(Model* model, nlohmann::json* bones){
     model->boneData.bones.resize(bones->size());
 

@@ -41,7 +41,7 @@ void BitmapLoad(BitmapFont* font, TexturePacker* packer, std::string fontFileNam
     // Get the UV data for the font image in the atlas
     TextureData texData = PackerGetTexture(packer, textureFile);
 
-    int atlasSize = packer->textureSize;
+    int atlasSize = packer->atlasSize;
 
     // Calculate dimensions of the subimage
     int subImageWidth  = texData.textureSize.x;
@@ -62,16 +62,16 @@ void BitmapLoad(BitmapFont* font, TexturePacker* packer, std::string fontFileNam
         int localY = margin + row * (glyphHeight + glyphPadding);
 
         // Convert local pixel coords to UV space within the atlas
-        float u = (texData.uvOffset.x * packer->textureSize + localX) / packer->textureSize;
+        float u = (texData.uvOffset.x * atlasSize + localX) / atlasSize;
         
         int flippedY = subImageHeight - localY - glyphHeight;
-        float v = (texData.uvOffset.y * packer->textureSize + flippedY) / packer->textureSize;
+        float v = (texData.uvOffset.y * atlasSize + flippedY) / atlasSize;
 
         BitmapGlyph glyph;
         glyph.uvOffset = { u, v };
         glyph.uvSize   = {
-            float(glyphWidth) / packer->textureSize,
-            float(glyphHeight) / packer->textureSize
+            float(glyphWidth) / atlasSize,
+            float(glyphHeight) / atlasSize
         };
         glyph.size   = { glyphWidth, glyphHeight };
         glyph.offset = { 0.0f, 0.0f };
