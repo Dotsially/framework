@@ -30,7 +30,7 @@ void PackerInitialize(TexturePacker* packer, uint32_t atlasSize){
 }
 
 
-void PackerInsertTexture(TexturePacker* packer, uint8_t* texture, int32_t width, int32_t height, std::string fileName) {
+std::string PackerInsertTexture(TexturePacker* packer, uint8_t* texture, int32_t width, int32_t height, std::string fileName) {
     stbrp_rect rect = {};
     rect.id = 0;
     rect.w = width;
@@ -40,7 +40,7 @@ void PackerInsertTexture(TexturePacker* packer, uint8_t* texture, int32_t width,
 
     if (!rect.was_packed) {
         std::cerr << "Failed to pack texture: " << fileName << std::endl;
-        return;
+        return "";
     }
 
     // Copy pixel data into atlas memory
@@ -63,9 +63,12 @@ void PackerInsertTexture(TexturePacker* packer, uint8_t* texture, int32_t width,
         {(float)width / packer->atlasSize, (float)height / packer->atlasSize },
         {width, height}
     };
+    
+    return textureName;
 }
 
-void PackerAddTexture(TexturePacker* packer, std::string fileName) {
+std::string PackerAddTexture(TexturePacker* packer, std::string fileName) {
+    std::string textureName = "";
     std::string filePath = "resources/textures/" + fileName;
 
     int width, height, channels;
@@ -74,11 +77,13 @@ void PackerAddTexture(TexturePacker* packer, std::string fileName) {
 
     if (!texture) {
         std::cout << "Failed to load texture: " << filePath << "\n";
-        return;
+        return textureName;
     }
 
-    PackerInsertTexture(packer, texture, width, height, fileName);
+    textureName = PackerInsertTexture(packer, texture, width, height, fileName);
     stbi_image_free(texture);
+
+    return textureName;
 }
 
 TextureData PackerGetTexture(TexturePacker* packer, std::string fileName) {

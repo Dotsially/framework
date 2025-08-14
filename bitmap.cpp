@@ -36,10 +36,10 @@ void BitmapLoad(BitmapFont* font, TexturePacker* packer, std::string fontFileNam
     std::string textureFile = metadata["texture"];
 
     // Add the font texture to the atlas
-    PackerAddTexture(packer, textureFile);
+    std::string atlasTextureName = PackerAddTexture(packer, textureFile);
 
     // Get the UV data for the font image in the atlas
-    TextureData texData = PackerGetTexture(packer, textureFile);
+    TextureData texData = PackerGetTexture(packer, atlasTextureName);
 
     int atlasSize = packer->atlasSize;
 
