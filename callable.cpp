@@ -26,8 +26,8 @@ void CallableAdd(CallableManager *callableManager, std::string name, GenericFunc
     callableManager->callables.push_back(callable);
 }
 
-void CallableCall(CallableManager *callableManager, std::string orderName, std::vector<std::any> args){
-    auto it = callableManager->callableIndex.find(orderName);
+void CallableCall(CallableManager *callableManager, std::string callableName, std::vector<std::any> args){
+    auto it = callableManager->callableIndex.find(callableName);
     if (it == callableManager->callableIndex.end()) return;
 
     size_t index = it->second;
