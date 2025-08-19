@@ -12,7 +12,7 @@
 
 #define MAX_HUD_QUADS 1000
 #define VERTICES_PER_QUAD 6
-#define FLOATS_PER_VERTEX 5
+#define FLOATS_PER_VERTEX 9
 #define VERTEX_BUFFER_SIZE (MAX_HUD_QUADS * VERTICES_PER_QUAD * FLOATS_PER_VERTEX)
 
 struct HudItem;
@@ -22,6 +22,7 @@ struct HudQuad {
     glm::vec2 size;
     glm::vec2 uvOffset; // (x, y)
     glm::vec2 uvSize;   // (w, h) normalized
+    glm::vec4 color;
     glm::vec4 marginsPixels;
     glm::vec4 marginsScreens;
     HudItem* parent = nullptr;
@@ -60,8 +61,9 @@ void HudInitialize(Hud* hud, Window& window){
     glGenVertexArrays(1, &hud->batch.vao);
     glGenBuffers(1, &hud->batch.vbo);
     GLBufferData(&hud->batch, VERTEX_BUFFER, GL_DYNAMIC_DRAW, nullptr, VERTEX_BUFFER_SIZE, sizeof(float)); 
-    GLAddAttribute(&hud->batch, GL_FLOAT, 3, 5*sizeof(float), 0);
-    GLAddAttribute(&hud->batch, GL_FLOAT, 2, 5*sizeof(float), 3*sizeof(float));
+    GLAddAttribute(&hud->batch, GL_FLOAT, 3, 9 * sizeof(float), 0);              // position
+    GLAddAttribute(&hud->batch, GL_FLOAT, 2, 9 * sizeof(float), 3 * sizeof(float)); // texcoord
+    GLAddAttribute(&hud->batch, GL_FLOAT, 4, 9 * sizeof(float), 5 * sizeof(float)); // color
 
     hud->batchShader = {};
     ShaderCreate(&hud->batchShader, "hud/hud_batch_vertex.glsl", "hud/hud_batch_fragment.glsl");
@@ -74,13 +76,13 @@ void HudResizeFramebuffer(Hud* hud, uint32_t newWidth, uint32_t newHeight) {
     ViewportUpdate(&hud->viewport, {hud->width, hud->height}, {0,0});
 }
 
-HudItem* HudAddItemQuad(Hud* hud, glm::vec2 position, glm::vec2 size, glm::vec2 uvOffset, glm::vec2 uvSize, int32_t layer = 0) {
+HudItem* HudAddItemQuad(Hud* hud, glm::vec2 position, glm::vec2 size, glm::vec2 uvOffset, glm::vec2 uvSize, glm::vec4 color, int32_t layer = 0) {
     //Create hud item
     hud->hudItems.emplace_back();
     HudItem* item = &hud->hudItems.back();
 
     //Create hud quad
-    hud->quads.emplace_back(HudQuad{position, size, uvOffset, uvSize, {}, {}, item, layer});
+    hud->quads.emplace_back(HudQuad{position, size, uvOffset, uvSize, color, {}, {}, item, layer});
     HudQuad* quad = &hud->quads.back();
 
     item->quads.push_back(quad);
@@ -92,7 +94,7 @@ HudItem* HudAddItemQuad(Hud* hud, glm::vec2 position, glm::vec2 size, glm::vec2 
 
 // marginPixels: amount of pixels in the texture for 9-slice
 // marginScreen: size of margin texture on screen
-HudItem* HudAddItemNineSlice(Hud* hud, glm::vec2 position, glm::vec2 size, glm::vec2 uvOffset, glm::vec2 uvSize, glm::vec4 marginsPixels, glm::vec4 marginsScreen, uint32_t textureAtlasSize, int32_t layer = 0){
+HudItem* HudAddItemNineSlice(Hud* hud, glm::vec2 position, glm::vec2 size, glm::vec2 uvOffset, glm::vec2 uvSize, glm::vec4 color, glm::vec4 marginsPixels, glm::vec4 marginsScreen, uint32_t textureAtlasSize, int32_t layer = 0){
     hud->hudItems.emplace_back();
     HudItem* item = &hud->hudItems.back();
 
@@ -130,26 +132,26 @@ HudItem* HudAddItemNineSlice(Hud* hud, glm::vec2 position, glm::vec2 size, glm::
     float innerW = w - left - right;
     float innerH = h - top - bottom;
 
-    auto addQuad = [&](glm::vec2 pos, glm::vec2 size, glm::vec2 uvStart, glm::vec2 uvSize, glm::vec4 marginsPixels, glm::vec4 marginsScreen, int32_t layer) {
-        hud->quads.emplace_back(HudQuad{pos, size, uvStart, uvSize, marginsPixels, marginsScreen, item, layer});
+    auto addQuad = [&](glm::vec2 pos, glm::vec2 size, glm::vec2 uvStart, glm::vec2 uvSize, glm::vec4 color, glm::vec4 marginsPixels, glm::vec4 marginsScreen, int32_t layer) {
+        hud->quads.emplace_back(HudQuad{pos, size, uvStart, uvSize, color, marginsPixels, marginsScreen, item, layer});
         HudQuad* quad = &hud->quads.back();
         item->quads.push_back(quad);
     };
 
     // Corners
-    addQuad({x, y}, {left, bottom}, {u0, v0}, {u1 - u0, v1 - v0}, marginsPixels, marginsScreen, layer);
-    addQuad({x + w - right, y}, {right, bottom}, {u2, v0}, {u3 - u2, v1 - v0}, marginsPixels, marginsScreen, layer);
-    addQuad({x, y + h - top}, {left, top}, {u0, v2}, {u1 - u0, v3 - v2}, marginsPixels, marginsScreen, layer);
-    addQuad({x + w - right, y + h - top}, {right, top}, {u2, v2}, {u3 - u2, v3 - v2}, marginsPixels, marginsScreen, layer);
+    addQuad({x, y}, {left, bottom}, {u0, v0}, {u1 - u0, v1 - v0}, color, marginsPixels, marginsScreen, layer);
+    addQuad({x + w - right, y}, {right, bottom}, {u2, v0}, {u3 - u2, v1 - v0}, color, marginsPixels, marginsScreen, layer);
+    addQuad({x, y + h - top}, {left, top}, {u0, v2}, {u1 - u0, v3 - v2}, color, marginsPixels, marginsScreen, layer);
+    addQuad({x + w - right, y + h - top}, {right, top}, {u2, v2}, {u3 - u2, v3 - v2}, color, marginsPixels, marginsScreen, layer);
 
     // Edges
-    addQuad({x + left, y}, {innerW, bottom}, {u1, v0}, {u2 - u1, v1 - v0}, marginsPixels, marginsScreen, layer);
-    addQuad({x + left, y + h - top}, {innerW, top}, {u1, v2}, {u2 - u1, v3 - v2}, marginsPixels, marginsScreen, layer);
-    addQuad({x, y + bottom}, {left, innerH}, {u0, v1}, {u1 - u0, v2 - v1}, marginsPixels, marginsScreen, layer);
-    addQuad({x + w - right, y + bottom}, {right, innerH}, {u2, v1}, {u3 - u2, v2 - v1}, marginsPixels, marginsScreen, layer);
+    addQuad({x + left, y}, {innerW, bottom}, {u1, v0}, {u2 - u1, v1 - v0}, color, marginsPixels, marginsScreen, layer);
+    addQuad({x + left, y + h - top}, {innerW, top}, {u1, v2}, {u2 - u1, v3 - v2}, color, marginsPixels, marginsScreen, layer);
+    addQuad({x, y + bottom}, {left, innerH}, {u0, v1}, {u1 - u0, v2 - v1}, color, marginsPixels, marginsScreen, layer);
+    addQuad({x + w - right, y + bottom}, {right, innerH}, {u2, v1}, {u3 - u2, v2 - v1}, color, marginsPixels, marginsScreen, layer);
 
     // Center
-    addQuad({x + left, y + bottom}, {innerW, innerH}, {u1, v1}, {u2 - u1, v2 - v1}, marginsScreen, marginsPixels, layer);
+    addQuad({x + left, y + bottom}, {innerW, innerH}, {u1, v1}, {u2 - u1, v2 - v1}, color, marginsScreen, marginsPixels, layer);
 
     item->position = glm::vec2(x,y);
     item->size = glm::vec2(w, h);
@@ -200,7 +202,7 @@ void HudUpdateNineSliceTexture(HudItem* item, glm::vec2 uvOffset, glm::vec2& uvS
     }
 }
 
-HudItem* HudRenderText(Hud* hud, BitmapFont* font, const std::string& text, glm::vec2 position, float scale = 1.0f, float spacing = 0.0f, float lineSpacing = 4.0f, int32_t layer = 0) {
+HudItem* HudRenderText(Hud* hud, BitmapFont* font, const std::string& text, glm::vec2 position, glm::vec4 color, float scale = 1.0f, float spacing = 0.0f, float lineSpacing = 4.0f, int32_t layer = 0) {
     glm::vec2 cursor = position;
     glm::vec2 glyphSize = font->glyphs['A'].size * scale;
 
@@ -231,6 +233,7 @@ HudItem* HudRenderText(Hud* hud, BitmapFont* font, const std::string& text, glm:
             glyphSize,
             glyph.uvOffset,
             glyph.uvSize,
+            color,
             {},
             {},
             item,
@@ -250,6 +253,11 @@ HudItem* HudRenderText(Hud* hud, BitmapFont* font, const std::string& text, glm:
     return item;
 }
 
+void HudUpdateColor(HudItem* item, glm::vec4 color){
+    for (HudQuad* quad : item->quads) {
+        quad->color = color;
+    }
+}
 
 void HudUpdateItemState(Hud* hud, HudItem* item, InputState& input) {
     float mouseX = input.mousePosition.x;
@@ -274,7 +282,6 @@ void HudUpdateItemState(Hud* hud, HudItem* item, InputState& input) {
             item->isHeldDown = true;
     }
 }
-
 
 //TODO change layer to depth buffer and let cpu sort. Increase max amount of quads for more expressive UIs
 void HudDrawQuadsToFrameBuffer(Hud* hud, Texture& textureAtlas){
@@ -314,20 +321,22 @@ void HudDrawQuadsToFrameBuffer(Hud* hud, Texture& textureAtlas){
         float u1 = u0 + quad.uvSize.x;
         float v1 = v0 + quad.uvSize.y;
 
-        // 6 vertices × 5 floats each = 30 floats per quad
-        float quadVertices[30] = {
-            // position         // texcoord
-            x,     y,     0.0f, u0, v0, // bottom-left
-            x + w, y + h, 0.0f, u1, v1, // top-right
-            x + w, y,     0.0f, u1, v0, // bottom-right
+        glm::vec4 color = quad.color;
 
-            x,     y,     0.0f, u0, v0, // bottom-left
-            x,     y + h, 0.0f, u0, v1, // top-left
-            x + w, y + h, 0.0f, u1, v1  // top-right
+        // 6 vertices × 5 floats each = 30 floats per quad
+        float quadVertices[54] = {
+            // position         // texcoord
+            x,     y,     0.0f, u0, v0, color.r, color.g, color.b, color.a, // bottom-left
+            x + w, y + h, 0.0f, u1, v1, color.r, color.g, color.b, color.a, // top-right
+            x + w, y,     0.0f, u1, v0, color.r, color.g, color.b, color.a, // bottom-right
+
+            x,     y,     0.0f, u0, v0, color.r, color.g, color.b, color.a, // bottom-left
+            x,     y + h, 0.0f, u0, v1, color.r, color.g, color.b, color.a, // top-left
+            x + w, y + h, 0.0f, u1, v1, color.r, color.g, color.b, color.a,// top-right
         };
 
         // Copy directly into the preallocated vector buffer
-        for (int i = 0; i < 30; ++i) {
+        for (int i = 0; i < 54; ++i) {
             bufferPtr[vertexIndex++] = quadVertices[i];
         }
 
