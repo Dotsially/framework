@@ -25,4 +25,9 @@ glm::vec3 Lerp(const glm::vec3& a, const glm::vec3& b, float t) {
 glm::quat Slerp(const glm::quat& a, const glm::quat& b, float t) {
     return glm::slerp(a, b, t);
 }
+
+//Manhattan distance in 3d grid
+int Distance(glm::ivec3& positionA, glm::ivec3& positionB){
+    return abs(positionA.x - positionB.x) + abs(positionA.y - positionB.y) + abs(positionA.z - positionB.z);
+}
 #endif
