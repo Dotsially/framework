@@ -9,15 +9,23 @@ struct Texture{
     uint32_t height;
 };
 
-void TextureFromFile(Texture* texture, const std::string& fileName){
+void TextureFromFile(Texture* texture, const std::string& fileName, bool billinearFilter = true){
     std::string filePath = "resources/textures/" + fileName;
     glGenTextures(1, &texture->textureID);
     glBindTexture(GL_TEXTURE_2D, texture->textureID); 
 
+
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);	
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);  
+    
+    if(billinearFilter){
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);  
+    }
+    else{
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);  
+    }
 
     // load and generate the textures
     int32_t width, height, nrChannels;
