@@ -45,7 +45,7 @@ void TextureFromFile(Texture* texture, const std::string& fileName, bool billine
     stbi_image_free(data);
 }
 
-void TextureFromMemory(Texture* texture, uint8_t* textureData, uint32_t width, uint32_t height){
+void TextureFromMemory(Texture* texture, uint8_t* textureData, uint32_t width, uint32_t height, bool billinearFilter = true){
     texture->width = width;
     texture->height = height;
     
@@ -54,8 +54,14 @@ void TextureFromMemory(Texture* texture, uint8_t* textureData, uint32_t width, u
 
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);	
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST_MIPMAP_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);  
+    if(billinearFilter){
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST_MIPMAP_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);  
+    }
+    else{
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);  
+    }
 
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, textureData);
     glGenerateMipmap(GL_TEXTURE_2D);

@@ -5,6 +5,8 @@
 #include "mesh.cpp"
 #include "bone.cpp"
 #include "animation.cpp"
+#include "texture_packer.cpp"
+#include "fileio.cpp"
 
 //TODO 
 // Will be reworked
@@ -22,15 +24,7 @@ struct ModelLibrary{
     std::unordered_map<std::string, std::uint32_t> modelIDs;
 };
 
-void ModelLibraryAdd(ModelLibrary* modelLibrary, Model* model, std::string fileName){
-    size_t slashPos = fileName.find_last_of('/');
-    if (slashPos == std::string::npos) slashPos = -1;
-
-    size_t prefixPos = fileName.find('.', slashPos + 1);
-    if (prefixPos == std::string::npos) prefixPos = fileName.size();
-
-    std::string modelName = fileName.substr(slashPos + 1, prefixPos - (slashPos + 1));
-
+void ModelLibraryAdd(ModelLibrary* modelLibrary, Model* model, std::string modelName){
     if (modelLibrary->modelIDs.find(modelName) == modelLibrary->modelIDs.end()) {
         modelLibrary->modelIDs[modelName] = modelLibrary->models.size();
         modelLibrary->models.push_back(*model);
@@ -42,7 +36,15 @@ void ModelLibraryAdd(ModelLibrary* modelLibrary, Model* model, std::string fileN
     }
 }
 
-void ModelLoad(ModelLibrary* modelLibrary, std::string fileName){
+glm::vec2 ModelConvertUVs(glm::vec2 UV, TexturePacker* modelsTexturePacker, std::string textureName){
+    if(modelsTexturePacker == nullptr) return UV;
+
+    TextureData data = PackerGetTexture(modelsTexturePacker, textureName);
+
+    return data.uvOffset + UV * data.uvSize;
+}
+
+void ModelLoad(ModelLibrary* modelLibrary, std::string fileName, std::string modelName, TexturePacker* modelsTexturePacker, std::string textureName){
     Model model = {};
     using json = nlohmann::json;
     std::string filePath = "resources/models/" + fileName;
@@ -84,8 +86,9 @@ void ModelLoad(ModelLibrary* modelLibrary, std::string fileName){
             vertices.push_back(jsonNormals[idx * 3 + 1]);
             vertices.push_back(jsonNormals[idx * 3 + 2]);
     
-            vertices.push_back(jsonUV[j * 2]);
-            vertices.push_back(jsonUV[j * 2 + 1]);
+            glm::vec2 UV = ModelConvertUVs({jsonUV[j * 2], jsonUV[j * 2 + 1]}, modelsTexturePacker, textureName);
+            vertices.push_back(UV.x);
+            vertices.push_back(UV.y);
         }
     
         // Add triangle indices (using fan triangulation for quads or more)
@@ -99,7 +102,7 @@ void ModelLoad(ModelLibrary* modelLibrary, std::string fileName){
     }
 
     MeshInitialize(&model.mesh, vertices.data(), vertices.size(), indices.data(), indices.size());
-    ModelLibraryAdd(modelLibrary, &model, fileName);
+    ModelLibraryAdd(modelLibrary, &model, modelName);
 }
 
 void ModelLoadBones(Model* model, nlohmann::json* bones){
@@ -127,8 +130,7 @@ void ModelLoadBones(Model* model, nlohmann::json* bones){
     }
 }
 
-
-void ModelLoadSkinned(ModelLibrary* modelLibrary, std::string fileName){
+void ModelLoadSkinned(ModelLibrary* modelLibrary, std::string fileName, std::string modelName, TexturePacker* modelsTexturePacker, std::string textureName){
     Model model = {};
 
     using json = nlohmann::json;
@@ -183,8 +185,9 @@ void ModelLoadSkinned(ModelLibrary* modelLibrary, std::string fileName){
             vertices.push_back(jsonNormals[idx * 3 + 1]);
             vertices.push_back(jsonNormals[idx * 3 + 2]);
     
-            vertices.push_back(jsonUV[j * 2]);
-            vertices.push_back(jsonUV[j * 2 + 1]);
+            glm::vec2 UV = ModelConvertUVs({jsonUV[j * 2], jsonUV[j * 2 + 1]}, modelsTexturePacker, textureName);
+            vertices.push_back(UV.x);
+            vertices.push_back(UV.y);
             
             glm::vec4 boneIDS = glm::vec4(-1);
             glm::vec4 weights = glm::vec4(-1);
@@ -219,9 +222,8 @@ void ModelLoadSkinned(ModelLibrary* modelLibrary, std::string fileName){
     }
 
     MeshSkinnedInitialize(&model.mesh, vertices.data(), vertices.size(), indices.data(), indices.size());
-    ModelLibraryAdd(modelLibrary, &model, fileName);
+    ModelLibraryAdd(modelLibrary, &model, modelName);
 }
-
 
 void ModelAnimate(Model* model, AnimationManager* animationManager, std::string animationName, uint64_t TICK_COUNTER) {
     std::vector<AnimationBone> animationBones = AnimationFrameGet(animationManager, animationName, TICK_COUNTER);
@@ -248,6 +250,28 @@ Model* ModelGet(ModelLibrary* modelLibrary, std::string modelName){
     if (it == modelLibrary->modelIDs.end()) return nullptr;
 
     return &modelLibrary->models[it->second];
+}
+
+void ModelLibraryInitialize(ModelLibrary* modelLibrary, TexturePacker* modelsTexturePacker){
+    using json = nlohmann::json;
+    std::vector<std::string> files = ReadDirectory("resources/data/models");
+
+    for(std::string file : files){
+        std::fstream fileStream("resources/data/models/" + file);
+        json jsonData = json::parse(fileStream);
+
+        std::string modelName = jsonData["model_name"];
+        std::string modelFile = jsonData["model_file"];
+        std::string textureName = jsonData["texture_name"];
+        bool skinned = jsonData["skinned"];
+        
+        if(skinned){
+            ModelLoadSkinned(modelLibrary, modelFile, modelName, modelsTexturePacker, textureName); 
+        }
+        else{
+            ModelLoad(modelLibrary, modelFile, modelName, modelsTexturePacker, textureName);
+        }
+    }
 }
 
 #endif
