@@ -24,7 +24,15 @@ struct ModelLibrary{
     std::unordered_map<std::string, std::uint32_t> modelIDs;
 };
 
-void ModelLibraryAdd(ModelLibrary* modelLibrary, Model* model, std::string modelName){
+void ModelLibraryAdd(ModelLibrary* modelLibrary, Model* model, std::string fileName){
+    size_t slashPos = fileName.find_last_of('/');
+    if (slashPos == std::string::npos) slashPos = -1;
+
+    size_t prefixPos = fileName.find('.', slashPos + 1);
+    if (prefixPos == std::string::npos) prefixPos = fileName.size();
+
+    std::string modelName = fileName.substr(slashPos + 1, prefixPos - (slashPos + 1));
+
     if (modelLibrary->modelIDs.find(modelName) == modelLibrary->modelIDs.end()) {
         modelLibrary->modelIDs[modelName] = modelLibrary->models.size();
         modelLibrary->models.push_back(*model);
@@ -44,7 +52,7 @@ glm::vec2 ModelConvertUVs(glm::vec2 UV, TexturePacker* modelsTexturePacker, std:
     return data.uvOffset + UV * data.uvSize;
 }
 
-void ModelLoad(ModelLibrary* modelLibrary, std::string fileName, std::string modelName, TexturePacker* modelsTexturePacker, std::string textureName){
+void ModelLoad(ModelLibrary* modelLibrary, std::string fileName, TexturePacker* modelsTexturePacker, std::string textureName){
     Model model = {};
     using json = nlohmann::json;
     std::string filePath = "resources/models/" + fileName;
@@ -102,7 +110,7 @@ void ModelLoad(ModelLibrary* modelLibrary, std::string fileName, std::string mod
     }
 
     MeshInitialize(&model.mesh, vertices.data(), vertices.size(), indices.data(), indices.size());
-    ModelLibraryAdd(modelLibrary, &model, modelName);
+    ModelLibraryAdd(modelLibrary, &model, fileName);
 }
 
 void ModelLoadBones(Model* model, nlohmann::json* bones){
@@ -130,7 +138,7 @@ void ModelLoadBones(Model* model, nlohmann::json* bones){
     }
 }
 
-void ModelLoadSkinned(ModelLibrary* modelLibrary, std::string fileName, std::string modelName, TexturePacker* modelsTexturePacker, std::string textureName){
+void ModelLoadSkinned(ModelLibrary* modelLibrary, std::string fileName, TexturePacker* modelsTexturePacker, std::string textureName){
     Model model = {};
 
     using json = nlohmann::json;
@@ -222,7 +230,7 @@ void ModelLoadSkinned(ModelLibrary* modelLibrary, std::string fileName, std::str
     }
 
     MeshSkinnedInitialize(&model.mesh, vertices.data(), vertices.size(), indices.data(), indices.size());
-    ModelLibraryAdd(modelLibrary, &model, modelName);
+    ModelLibraryAdd(modelLibrary, &model, fileName);
 }
 
 void ModelAnimate(Model* model, AnimationManager* animationManager, std::string animationName, uint64_t TICK_COUNTER) {
@@ -254,22 +262,26 @@ Model* ModelGet(ModelLibrary* modelLibrary, std::string modelName){
 
 void ModelLibraryInitialize(ModelLibrary* modelLibrary, TexturePacker* modelsTexturePacker){
     using json = nlohmann::json;
-    std::vector<std::string> files = ReadDirectory("resources/data/models");
+    std::vector<std::string> files = ReadDirectory("resources/models");
 
     for(std::string file : files){
-        std::fstream fileStream("resources/data/models/" + file);
+        size_t prefix_position = file.find_last_of(".");
+        if(prefix_position == std::string::npos) continue;
+
+        size_t jsonPrefix = file.find("json", prefix_position);
+        if(jsonPrefix == std::string::npos) continue;
+
+        std::fstream fileStream("resources/models/" + file);
         json jsonData = json::parse(fileStream);
 
-        std::string modelName = jsonData["model_name"];
-        std::string modelFile = jsonData["model_file"];
-        std::string textureName = jsonData["texture_name"];
+        std::string textureName = jsonData["textures"][0];
         bool skinned = jsonData["skinned"];
         
         if(skinned){
-            ModelLoadSkinned(modelLibrary, modelFile, modelName, modelsTexturePacker, textureName); 
+            ModelLoadSkinned(modelLibrary, file, modelsTexturePacker, textureName); 
         }
         else{
-            ModelLoad(modelLibrary, modelFile, modelName, modelsTexturePacker, textureName);
+            ModelLoad(modelLibrary, file, modelsTexturePacker, textureName);
         }
     }
 }
