@@ -2,6 +2,7 @@
 #define WINDOW
 
 #include "common.cpp"
+#include "common_graphics.cpp"
 
 struct Window{
     std::string title;

@@ -2,6 +2,7 @@
 #define SHADER
 
 #include "common.cpp"
+#include "common_graphics.cpp"
 
 struct Shader{
     uint32_t programID;

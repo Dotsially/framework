@@ -2,6 +2,7 @@
 #define TEXTURE_PACKER
 
 #include "common.cpp"
+#include "common_graphics.cpp"
 
 #define PIXEL_SIZE 4
 

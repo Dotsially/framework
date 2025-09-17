@@ -2,6 +2,7 @@
 #define TEXTURE_ARRAY
 
 #include "common.cpp"
+#include "common_graphics.cpp"
 
 struct TextureArray{
     uint32_t textureID;

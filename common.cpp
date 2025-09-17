@@ -1,11 +1,7 @@
 #ifndef COMMON
 #define COMMON
 
-#include "SDL3/SDL.h"
-#include "SDL3/SDL_main.h"
-#include "SDL3/SDL_timer.h"
-#include "SDL3/SDL_events.h"
-#include "glad/glad.h"
+
 #include <string>
 #include <iostream>
 #include <fstream>
@@ -32,6 +28,7 @@
 #include <unordered_set>
 #include <set>
 #include <queue>
+#include <chrono>
 
 #include <nlohmann/json.hpp>
 

@@ -2,6 +2,7 @@
 #define TEXTURE
 
 #include "common.cpp"
+#include "common_graphics.cpp"
 
 struct Texture{
     uint32_t textureID;

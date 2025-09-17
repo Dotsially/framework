@@ -1,6 +1,7 @@
 #ifndef RENDER
 #define RENDER
 #include "common.cpp"
+#include "common_graphics.cpp"
 
 enum GLBufferType{
     VERTEX_BUFFER,
