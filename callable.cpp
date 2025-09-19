@@ -17,52 +17,60 @@ struct CallableManager
     std::unordered_map<std::string, uint32_t> callableIndex;
 };
 
-void CallableRegisterName(CallableManager* manager, const std::string& name){
-    if (manager->callableIndex.find(name) == manager->callableIndex.end())
+CallableManager* gCallableManager = nullptr;
+
+void CallableRegisterName(const std::string& name){
+    if(!gCallableManager) return;
+    if (gCallableManager->callableIndex.find(name) == gCallableManager->callableIndex.end())
     {
         Callable callable = {};
         callable.name = name;
-        manager->callableIndex[name] = manager->callables.size();
-        manager->callables.push_back(callable);
+        gCallableManager->callableIndex[name] = gCallableManager->callables.size();
+        gCallableManager->callables.push_back(callable);
     }
 }
 
-void CallableAddFunction(CallableManager* manager, const std::string& name, GenericFunction function)
+void CallableAddFunction(const std::string& name, GenericFunction function)
 {
-    auto it = manager->callableIndex.find(name);
-    if (it != manager->callableIndex.end())
+    if(!gCallableManager) return;
+    auto it = gCallableManager->callableIndex.find(name);
+    if (it != gCallableManager->callableIndex.end())
     {
-        manager->callables[it->second].function = function;
+        gCallableManager->callables[it->second].function = function;
     }
 }
 
-void CallableAdd(CallableManager* manager, const std::string& name, GenericFunction function){
-    if (manager->callableIndex.find(name) == manager->callableIndex.end())
+void CallableAdd(const std::string& name, GenericFunction function){
+    if(!gCallableManager) return;
+    if (gCallableManager->callableIndex.find(name) == gCallableManager->callableIndex.end())
     {
         Callable callable = {};
         callable.name = name;
         callable.function = function;
-        manager->callableIndex[name] = manager->callables.size();
-        manager->callables.push_back(callable);
+        gCallableManager->callableIndex[name] = gCallableManager->callables.size();
+        gCallableManager->callables.push_back(callable);
     }
 }
 
-void CallableInvoke(CallableManager *callableManager, const std::string& callableName, std::vector<std::any> args){
-    auto it = callableManager->callableIndex.find(callableName);
-    if (it == callableManager->callableIndex.end()) return;
+void CallableInvoke(const std::string& callableName, std::vector<std::any> args){
+    if(!gCallableManager) return;
+    auto it = gCallableManager->callableIndex.find(callableName);
+    if (it == gCallableManager->callableIndex.end()) return;
 
     size_t index = it->second;
-    if (index >= callableManager->callables.size()) return;
+    if (index >= gCallableManager->callables.size()) return;
 
-    Callable* callable = &callableManager->callables[index];
+    Callable* callable = &gCallableManager->callables[index];
     callable->function(args);
 }
 
 //Only call after all callables have been registered
-int CallableGetIndex(CallableManager *callableManager, const std::string& callableName){
+int CallableGetIndex(const std::string& callableName){
+    if(!gCallableManager) return -1;
+
     int index = -1;
-    auto it = callableManager->callableIndex.find(callableName);
-    if (it == callableManager->callableIndex.end()) return index;
+    auto it = gCallableManager->callableIndex.find(callableName);
+    if (it == gCallableManager->callableIndex.end()) return index;
 
     index = it->second;
     return index;
