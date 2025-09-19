@@ -247,8 +247,6 @@ void ModelLibraryLoadSkinned(std::string fileName, TexturePacker* modelsTextureP
 void ModelAnimate(Model* model, AnimationManager* animationManager, std::string animationName, uint64_t TICK_COUNTER) {
     std::vector<AnimationBone> animationBones = AnimationFrameGet(animationManager, animationName, TICK_COUNTER);
 
-    std::cout << model->boneData.transforms.size() << std::endl;
-
     for(int i = 0; i < animationBones.size(); ++i){
         Bone* bone = BoneGet(&model->boneData, animationBones[i].name);
         if(!bone) continue;
