@@ -133,13 +133,16 @@ void ModelLoadBones(Model* model, nlohmann::json* bones){
         bone.position = glm::vec3(0);
         bone.rotation = glm::quat(glm::vec3(0));
         bone.scale = glm::vec3(1);
+        
+        bone.parentBoneID = -1;
 
         model->boneData.boneIDs[bone.name] = i;
         model->boneData.bones[i] = bone;
         
-        if (!(*bones)[i]["parent"].is_null()){
-            model->boneData.bones[i].parent = &model->boneData.bones[model->boneData.boneIDs[(*bones)[i]["parent"]]];
-            model->boneData.bones[i].parent->children.push_back(&model->boneData.bones[i]);
+        if (!(*bones)[i]["parent"].is_null()){ 
+            uint32_t parentID = model->boneData.boneIDs[(*bones)[i]["parent"]];
+            model->boneData.bones[i].parentBoneID = parentID;
+            model->boneData.bones[parentID].children.push_back(i);
         }
     }
 }
@@ -243,6 +246,8 @@ void ModelLibraryLoadSkinned(std::string fileName, TexturePacker* modelsTextureP
 
 void ModelAnimate(Model* model, AnimationManager* animationManager, std::string animationName, uint64_t TICK_COUNTER) {
     std::vector<AnimationBone> animationBones = AnimationFrameGet(animationManager, animationName, TICK_COUNTER);
+
+    std::cout << model->boneData.transforms.size() << std::endl;
 
     for(int i = 0; i < animationBones.size(); ++i){
         Bone* bone = BoneGet(&model->boneData, animationBones[i].name);

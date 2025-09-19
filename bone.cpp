@@ -4,13 +4,14 @@
 #include "common.cpp"
 
 struct Bone{
-    Bone* parent;
-    std::vector<Bone*> children;
+    std::vector<int32_t> children;
     std::string name;
     glm::vec3 origin;
     glm::vec3 position;
     glm::quat rotation;
     glm::vec3 scale;
+    
+    int32_t parentBoneID;
 };
 
 struct BoneData{
@@ -22,7 +23,7 @@ struct BoneData{
 void BoneCalculateTransforms(BoneData* boneData){
     for (int i = 0; i < boneData->bones.size(); i++) {
         Bone& bone = boneData->bones[i];
-        glm::mat4* currentTransform = &boneData->transforms[i];
+        glm::mat4& currentTransform = boneData->transforms[i];
 
         glm::mat4 T_local      = glm::translate(glm::mat4(1.0f), bone.position);
         glm::mat4 T_toOrigin   = glm::translate(glm::mat4(1.0f), -bone.origin);
@@ -32,11 +33,10 @@ void BoneCalculateTransforms(BoneData* boneData){
 
         glm::mat4 localTransform = T_local * T_fromOrigin * R * S * T_toOrigin;
 
-        if (bone.parent == nullptr) {
-            *currentTransform = localTransform;
+        if (bone.parentBoneID < 0) {
+            currentTransform = localTransform;
         } else {
-            int parentID = boneData->boneIDs[bone.parent->name];
-            *currentTransform = boneData->transforms[parentID] * localTransform;
+            currentTransform = boneData->transforms[bone.parentBoneID] * localTransform;
         }
     }
 }
