@@ -19,6 +19,12 @@ struct ConnectionResult{
     ClientSocket client;
 };
 
+struct SendResult {
+    bool success;
+    int dataSent;
+    int errorCode; // 0 on success, or WSAGetLastError() on failure
+};
+
 int SocketServerCreate(ServerSocket* server, uint16_t serverSize, int PORT, bool isSinglePlayer){
     WSADATA wsa;
 
@@ -99,6 +105,48 @@ ConnectionResult SocketServerHandleConnections(ServerSocket* server){
     return result;
 } 
 
+SendResult SocketServerSend(ClientSocket* client, const char* data, int dataSize) {
+    SendResult result = {};
+
+    int dataSent = send(client->socket, data, dataSize, 0);
+    
+    if (dataSent == SOCKET_ERROR) {
+        result.success = false;
+        result.dataSent = 0;
+        result.errorCode = WSAGetLastError(); // Only on Windows
+        return result;
+    }
+
+    result.success = true;
+    result.dataSent = dataSent;
+    result.errorCode = 0;
+    return result;
+}
+
+SendResult SocketClientSend(ClientSocket* client, const char* data, int dataSize) {
+    SendResult result = {};
+
+    int dataSent = send(client->socket, data, dataSize, 0);
+    
+    if (dataSent == SOCKET_ERROR) {
+        result.success = false;
+        result.dataSent = 0;
+        result.errorCode = WSAGetLastError(); // Only on Windows
+        return result;
+    }
+
+    result.success = true;
+    result.dataSent = dataSent;
+    result.errorCode = 0;
+    return result;
+}
+
+void SocketServerReceive(ClientSocket* client, char* buffer, int bufferSize){
+    //TODO add encryption later
+    
+}
+
+
 void SocketServerCloseConnection(ClientSocket* client){
     std::cout << "Closing connection for socket: " << client->socket << std::endl;
     closesocket(client->socket);
@@ -109,7 +157,6 @@ void SocketServerClose(ServerSocket* server){
     closesocket(server->socket);
     WSACleanup();
 }
-
 
 int SocketClientConnectServer(ClientSocket* client, std::string serverIP, int serverPORT, bool isSinglePlayer)  {
     int result = 0;

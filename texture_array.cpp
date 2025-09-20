@@ -20,7 +20,7 @@ void TextureArrayInitialize(TextureArray* textureArray, int textureSize, int arr
 
     glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);	
     glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_NEAREST_MIPMAP_NEAREST);
     glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_NEAREST);  
 
     textureArray->textureUnitCount = 0;
@@ -28,12 +28,12 @@ void TextureArrayInitialize(TextureArray* textureArray, int textureSize, int arr
 
 void TextureArrayAdd(TextureArray* textureArray, std::string& fileName){
     std::string filePath = "resources/textures/" + fileName;
-    glBindTexture(GL_TEXTURE_2D, textureArray->textureID); 
+    glBindTexture(GL_TEXTURE_2D_ARRAY, textureArray->textureID); 
 
     // load and generate the textures
     int32_t width, height, nrChannels;
     stbi_set_flip_vertically_on_load(true);  
-    uint8_t* data = stbi_load(filePath.c_str(), &width, &height, &nrChannels, 0);
+    uint8_t* data = stbi_load(filePath.c_str(), &width, &height, &nrChannels, 4);
     
     if (data == NULL){
         std::cout << "Failed to load texture" << std::endl;
@@ -41,8 +41,8 @@ void TextureArrayAdd(TextureArray* textureArray, std::string& fileName){
     }
     
     glTexSubImage3D(GL_TEXTURE_2D_ARRAY, 0, 0, 0, textureArray->textureUnitCount, width, height, 1, GL_RGBA, GL_UNSIGNED_BYTE, data);
-    glGenerateMipmap(GL_TEXTURE_2D);
-    glBindTexture(GL_TEXTURE_2D, 0);
+    glGenerateMipmap(GL_TEXTURE_2D_ARRAY);
+    glBindTexture(GL_TEXTURE_2D_ARRAY, 0);
     stbi_image_free(data);
 
     textureArray->textureUnitCount += 1;
@@ -51,7 +51,7 @@ void TextureArrayAdd(TextureArray* textureArray, std::string& fileName){
 
 void TextureArrayUse(TextureArray* textureArray, uint32_t textureUnit){
     glActiveTexture(textureUnit);
-    glBindTexture(GL_TEXTURE_2D, textureArray->textureID); 
+    glBindTexture(GL_TEXTURE_2D_ARRAY, textureArray->textureID); 
 }
 
 #endif
