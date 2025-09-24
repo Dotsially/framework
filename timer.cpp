@@ -4,7 +4,11 @@
 #include "common.cpp"
 
 uint64_t TICK_COUNTER = 0;
-std::chrono::steady_clock::time_point AppStartTime;
+std::chrono::steady_clock::time_point EngineStartTime;
+
+void EngineStartClock(){
+    EngineStartTime = std::chrono::steady_clock::now();
+}
 
 struct Timer{
     uint64_t lastTime;
@@ -14,7 +18,7 @@ struct Timer{
 
 uint64_t GetMillisecondsSinceStart() {
     auto now = std::chrono::steady_clock::now();
-    auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(now - AppStartTime).count();
+    auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(now - EngineStartTime).count();
     return uint64_t(ms);
 }
 
