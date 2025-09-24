@@ -16,7 +16,7 @@ struct ServerSocket{
 
 struct ConnectionResult{
     int code;
-    ClientSocket client;
+    ClientSocket socket;
 };
 
 struct SendResult {
@@ -97,7 +97,7 @@ ConnectionResult SocketServerHandleConnections(ServerSocket* server){
     newClient.socket = client_socket;
     newClient.address = client_address;
 
-    result.client = newClient;
+    result.socket = newClient;
     result.code = 1;
 
     std::cout << "New client connected, socket: " << client_socket << std::endl;
@@ -156,6 +156,11 @@ void SocketServerCloseConnection(ClientSocket* client){
 void SocketServerClose(ServerSocket* server){
     closesocket(server->socket);
     WSACleanup();
+}
+
+void SocketClientClose(ClientSocket* client, bool isSinglePlayer){
+    closesocket(client->socket);
+    if(!isSinglePlayer) WSACleanup();
 }
 
 int SocketClientConnectServer(ClientSocket* client, std::string serverIP, int serverPORT, bool isSinglePlayer)  {
