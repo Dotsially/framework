@@ -35,17 +35,17 @@ void InputHandler(InputState& state, Window& window) {
     state.windowRezised = false;
 
     // Process all pending events
-    while (SDL_PollEvent(&window.event)) {
-        switch (window.event.type) {
+    while (SDL_PollEvent(&window.m_event)) {
+        switch (window.m_event.type) {
             case SDL_EVENT_QUIT:
-                window.quit = true;
+                window.m_quit = true;
                 break;
             case SDL_EVENT_WINDOW_RESIZED:
-                WindowResize(window);
+                window.Resize();
                 state.windowRezised = true;
                 break;
             case SDL_EVENT_MOUSE_WHEEL:
-                state.mouseScroll += window.event.wheel.y;  // scroll up: +1, scroll down: -1
+                state.mouseScroll += window.m_event.wheel.y;  // scroll up: +1, scroll down: -1
                 break;
         }
     }

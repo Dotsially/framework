@@ -19,230 +19,257 @@ struct Model{
     Mesh mesh;
 };
 
-struct ModelLibrary{
-    std::vector<Model> models;
-    std::unordered_map<std::string, std::uint32_t> modelIDs;
+class ModelLibrary{
+public:
+    std::vector<Model> m_models;
+    std::unordered_map<std::string, std::uint32_t> m_modelIDs;
+
+    void Initialize(TexturePacker* modelsTexturePacker){
+        using json = nlohmann::json;
+        std::vector<std::string> files = ReadDirectory("resources/models");
+
+        for(std::string file : files){
+            size_t prefix_position = file.find_last_of(".");
+            if(prefix_position == std::string::npos) continue;
+
+            size_t jsonPrefix = file.find("json", prefix_position);
+            if(jsonPrefix == std::string::npos) continue;
+
+            std::fstream fileStream("resources/models/" + file);
+            json jsonData = json::parse(fileStream);
+
+            std::string textureName = jsonData["textures"][0];
+            bool skinned = jsonData["skinned"];
+            
+            if(skinned){
+                LoadSkinned(file, modelsTexturePacker, textureName); 
+            }
+            else{
+                Load(file, modelsTexturePacker, textureName);
+            }
+        }
+    }
+    
+    Model* Get(std::string modelName){
+        auto it = m_modelIDs.find(modelName);
+        if (it == m_modelIDs.end()) return nullptr;
+
+        return &m_models[it->second];
+    }
+
+    void Load(std::string fileName, TexturePacker* modelsTexturePacker, std::string textureName){
+        Model model = {};
+        using json = nlohmann::json;
+        std::string filePath = "resources/models/" + fileName;
+
+        std::vector<float> vertices;
+        std::vector<uint32_t> indices;
+        std::fstream file(filePath);
+
+        json data = json::parse(file);
+
+        json jsonVertices = data["vertices"];
+        if(!jsonVertices.is_array()) return;
+
+        json jsonNormals = data["normals"];
+        if(!jsonNormals.is_array()) return;
+        
+        json jsonFaces = data["faces"];
+        if(!jsonFaces.is_array()) return;
+        
+        uint32_t vertexOffset = 0;
+
+        for (int i = 0; i < jsonFaces.size(); i++) {
+            json jsonUV = jsonFaces[i]["uv_coords"];
+            if (!jsonUV.is_array()) return;
+        
+            json jsonIndices = jsonFaces[i]["indices"];
+            if (!jsonIndices.is_array()) return;
+        
+            uint32_t numVertsInFace = jsonIndices.size();
+        
+            // Add new vertex data
+            for (int j = 0; j < numVertsInFace; j++) {
+                uint32_t idx = uint32_t(jsonIndices[j]);
+                vertices.push_back(jsonVertices[idx * 3]);
+                vertices.push_back(jsonVertices[idx * 3 + 1]);
+                vertices.push_back(jsonVertices[idx * 3 + 2]);
+
+                vertices.push_back(jsonNormals[idx * 3]);
+                vertices.push_back(jsonNormals[idx * 3 + 1]);
+                vertices.push_back(jsonNormals[idx * 3 + 2]);
+        
+                glm::vec2 UV = ConvertUVs({jsonUV[j * 2], jsonUV[j * 2 + 1]}, modelsTexturePacker, textureName);
+                vertices.push_back(UV.x);
+                vertices.push_back(UV.y);
+            }
+        
+            // Add triangle indices (using fan triangulation for quads or more)
+            for (int j = 1; j < numVertsInFace - 1; j++) {
+                indices.push_back(vertexOffset);
+                indices.push_back(vertexOffset + j);
+                indices.push_back(vertexOffset + j + 1);
+            }
+        
+            vertexOffset += numVertsInFace;
+        }
+
+        MeshInitialize(&model.mesh, vertices.data(), vertices.size(), indices.data(), indices.size());
+        Add(&model, fileName);
+    }
+    
+    void LoadSkinned(std::string fileName, TexturePacker* modelsTexturePacker, std::string textureName){
+        Model model = {};
+
+        using json = nlohmann::json;
+        std::string filePath = "resources/models/" + fileName;
+
+        std::vector<float> vertices;
+        std::vector<uint32_t> indices;
+        std::fstream file(filePath);
+
+        json data = json::parse(file);
+        
+        json jsonBones = data["bones"];
+        if(!jsonBones.is_array()) return;
+        LoadBones(&model, &jsonBones);
+
+        model.boneData.transforms.resize(model.boneData.bones.size());
+
+        json jsonVertices = data["vertices"];
+        if(!jsonVertices.is_array()) return;
+
+        json jsonVertexGroups = data["vertices_bones"];
+        if(!jsonVertexGroups.is_array()) return;
+
+        json jsonWeights = data["vertices_weights"];
+        if(!jsonWeights.is_array()) return;
+
+        json jsonNormals = data["normals"];
+        if(!jsonNormals.is_array()) return;
+        
+        json jsonFaces = data["faces"];
+        if(!jsonFaces.is_array()) return;
+        
+        uint32_t vertexOffset = 0;
+
+        for (int i = 0; i < jsonFaces.size(); i++) {
+            json jsonUV = jsonFaces[i]["uv_coords"];
+            if (!jsonUV.is_array()) return;
+        
+            json jsonIndices = jsonFaces[i]["indices"];
+            if (!jsonIndices.is_array()) return;
+        
+            uint32_t numVertsInFace = jsonIndices.size();
+        
+            // Add new vertex data
+            for (int j = 0; j < numVertsInFace; j++) {
+                uint32_t idx = uint32_t(jsonIndices[j]);
+                vertices.push_back(jsonVertices[idx * 3]);
+                vertices.push_back(jsonVertices[idx * 3 + 1]);
+                vertices.push_back(jsonVertices[idx * 3 + 2]);
+
+                vertices.push_back(jsonNormals[idx * 3]);
+                vertices.push_back(jsonNormals[idx * 3 + 1]);
+                vertices.push_back(jsonNormals[idx * 3 + 2]);
+        
+                glm::vec2 UV = ConvertUVs({jsonUV[j * 2], jsonUV[j * 2 + 1]}, modelsTexturePacker, textureName);
+                vertices.push_back(UV.x);
+                vertices.push_back(UV.y);
+                
+                glm::vec4 boneIDS = glm::vec4(-1);
+                glm::vec4 weights = glm::vec4(-1);
+
+                for(int k = 0; k < jsonVertexGroups[idx].size(); k++){
+                    boneIDS[k] = model.boneData.boneIDs[jsonVertexGroups[idx][k]];
+                }
+
+                for(int k = 0; k < jsonWeights[idx].size(); k++){
+                    weights[k] = jsonWeights[idx][k];
+                }
+
+                vertices.push_back(boneIDS.x);
+                vertices.push_back(boneIDS.y);
+                vertices.push_back(boneIDS.z);
+                vertices.push_back(boneIDS.w);
+                
+                vertices.push_back(weights.x);
+                vertices.push_back(weights.y);
+                vertices.push_back(weights.z);
+                vertices.push_back(weights.w);
+            }
+        
+            // Add triangle indices (using fan triangulation for quads or more)
+            for (int j = 1; j < numVertsInFace - 1; j++) {
+                indices.push_back(vertexOffset);
+                indices.push_back(vertexOffset + j);
+                indices.push_back(vertexOffset + j + 1);
+            }
+        
+            vertexOffset += numVertsInFace;
+        }
+
+        MeshSkinnedInitialize(&model.mesh, vertices.data(), vertices.size(), indices.data(), indices.size());
+        Add(&model, fileName);
+    }
+
+private:    
+    void Add(Model* model, std::string fileName){
+        size_t slashPos = fileName.find_last_of('/');
+        if (slashPos == std::string::npos) slashPos = -1;
+
+        size_t prefixPos = fileName.find('.', slashPos + 1);
+        if (prefixPos == std::string::npos) prefixPos = fileName.size();
+
+        std::string modelName = fileName.substr(slashPos + 1, prefixPos - (slashPos + 1));
+
+        if (m_modelIDs.find(modelName) == m_modelIDs.end()) {
+            m_modelIDs[modelName] = m_models.size();
+            m_models.push_back(*model);
+        }
+        else{
+            uint32_t modelIndex = m_modelIDs[modelName];
+            MeshFree(&m_models[modelIndex].mesh);
+            m_models[modelIndex] = *model;
+        }
+    }
+    glm::vec2 ConvertUVs(glm::vec2 UV, TexturePacker* modelsTexturePacker, std::string textureName){
+        if(modelsTexturePacker == nullptr) return UV;
+
+        TextureData data = modelsTexturePacker->GetTexture(textureName);
+
+        return data.uvOffset + UV * data.uvSize;
+    }
+    void LoadBones(Model* model, nlohmann::json* bones){
+        model->boneData.bones.resize(bones->size());
+
+        for(int i = 0; i < bones->size(); i++){
+            Bone bone = {};
+            bone.name = (*bones)[i]["name"];
+
+            bone.origin.x = (*bones)[i]["location"][0]; 
+            bone.origin.y = (*bones)[i]["location"][1]; 
+            bone.origin.z = (*bones)[i]["location"][2];
+            
+            bone.position = glm::vec3(0);
+            bone.rotation = glm::quat(glm::vec3(0));
+            bone.scale = glm::vec3(1);
+            
+            bone.parentBoneID = -1;
+
+            model->boneData.boneIDs[bone.name] = i;
+            model->boneData.bones[i] = bone;
+            
+            if (!(*bones)[i]["parent"].is_null()){ 
+                uint32_t parentID = model->boneData.boneIDs[(*bones)[i]["parent"]];
+                model->boneData.bones[i].parentBoneID = parentID;
+                model->boneData.bones[parentID].children.push_back(i);
+            }
+        }
+    }
 };
 
 ModelLibrary* gModelLibrary = nullptr;
-
-void ModelLibraryAdd(Model* model, std::string fileName){
-    if(!gModelLibrary) return;
-
-    size_t slashPos = fileName.find_last_of('/');
-    if (slashPos == std::string::npos) slashPos = -1;
-
-    size_t prefixPos = fileName.find('.', slashPos + 1);
-    if (prefixPos == std::string::npos) prefixPos = fileName.size();
-
-    std::string modelName = fileName.substr(slashPos + 1, prefixPos - (slashPos + 1));
-
-    if (gModelLibrary->modelIDs.find(modelName) == gModelLibrary->modelIDs.end()) {
-        gModelLibrary->modelIDs[modelName] = gModelLibrary->models.size();
-        gModelLibrary->models.push_back(*model);
-    }
-    else{
-        uint32_t modelIndex = gModelLibrary->modelIDs[modelName];
-        MeshFree(&gModelLibrary->models[modelIndex].mesh);
-        gModelLibrary->models[modelIndex] = *model;
-    }
-}
-
-glm::vec2 ModelConvertUVs(glm::vec2 UV, TexturePacker* modelsTexturePacker, std::string textureName){
-    if(modelsTexturePacker == nullptr) return UV;
-
-    TextureData data = PackerGetTexture(modelsTexturePacker, textureName);
-
-    return data.uvOffset + UV * data.uvSize;
-}
-
-void ModelLibraryLoad(std::string fileName, TexturePacker* modelsTexturePacker, std::string textureName){
-    if(!gModelLibrary) return;
-
-    Model model = {};
-    using json = nlohmann::json;
-    std::string filePath = "resources/models/" + fileName;
-
-    std::vector<float> vertices;
-    std::vector<uint32_t> indices;
-    std::fstream file(filePath);
-
-    json data = json::parse(file);
-
-    json jsonVertices = data["vertices"];
-    if(!jsonVertices.is_array()) return;
-
-    json jsonNormals = data["normals"];
-    if(!jsonNormals.is_array()) return;
-    
-    json jsonFaces = data["faces"];
-    if(!jsonFaces.is_array()) return;
-    
-    uint32_t vertexOffset = 0;
-
-    for (int i = 0; i < jsonFaces.size(); i++) {
-        json jsonUV = jsonFaces[i]["uv_coords"];
-        if (!jsonUV.is_array()) return;
-    
-        json jsonIndices = jsonFaces[i]["indices"];
-        if (!jsonIndices.is_array()) return;
-    
-        uint32_t numVertsInFace = jsonIndices.size();
-    
-        // Add new vertex data
-        for (int j = 0; j < numVertsInFace; j++) {
-            uint32_t idx = uint32_t(jsonIndices[j]);
-            vertices.push_back(jsonVertices[idx * 3]);
-            vertices.push_back(jsonVertices[idx * 3 + 1]);
-            vertices.push_back(jsonVertices[idx * 3 + 2]);
-
-            vertices.push_back(jsonNormals[idx * 3]);
-            vertices.push_back(jsonNormals[idx * 3 + 1]);
-            vertices.push_back(jsonNormals[idx * 3 + 2]);
-    
-            glm::vec2 UV = ModelConvertUVs({jsonUV[j * 2], jsonUV[j * 2 + 1]}, modelsTexturePacker, textureName);
-            vertices.push_back(UV.x);
-            vertices.push_back(UV.y);
-        }
-    
-        // Add triangle indices (using fan triangulation for quads or more)
-        for (int j = 1; j < numVertsInFace - 1; j++) {
-            indices.push_back(vertexOffset);
-            indices.push_back(vertexOffset + j);
-            indices.push_back(vertexOffset + j + 1);
-        }
-    
-        vertexOffset += numVertsInFace;
-    }
-
-    MeshInitialize(&model.mesh, vertices.data(), vertices.size(), indices.data(), indices.size());
-    ModelLibraryAdd(&model, fileName);
-}
-
-void ModelLoadBones(Model* model, nlohmann::json* bones){
-    model->boneData.bones.resize(bones->size());
-
-    for(int i = 0; i < bones->size(); i++){
-        Bone bone = {};
-        bone.name = (*bones)[i]["name"];
-
-        bone.origin.x = (*bones)[i]["location"][0]; 
-        bone.origin.y = (*bones)[i]["location"][1]; 
-        bone.origin.z = (*bones)[i]["location"][2];
-        
-        bone.position = glm::vec3(0);
-        bone.rotation = glm::quat(glm::vec3(0));
-        bone.scale = glm::vec3(1);
-        
-        bone.parentBoneID = -1;
-
-        model->boneData.boneIDs[bone.name] = i;
-        model->boneData.bones[i] = bone;
-        
-        if (!(*bones)[i]["parent"].is_null()){ 
-            uint32_t parentID = model->boneData.boneIDs[(*bones)[i]["parent"]];
-            model->boneData.bones[i].parentBoneID = parentID;
-            model->boneData.bones[parentID].children.push_back(i);
-        }
-    }
-}
-
-void ModelLibraryLoadSkinned(std::string fileName, TexturePacker* modelsTexturePacker, std::string textureName){
-    if(!gModelLibrary) return;
-
-    Model model = {};
-
-    using json = nlohmann::json;
-    std::string filePath = "resources/models/" + fileName;
-
-    std::vector<float> vertices;
-    std::vector<uint32_t> indices;
-    std::fstream file(filePath);
-
-    json data = json::parse(file);
-    
-    json jsonBones = data["bones"];
-    if(!jsonBones.is_array()) return;
-    ModelLoadBones(&model, &jsonBones);
-
-    model.boneData.transforms.resize(model.boneData.bones.size());
-
-    json jsonVertices = data["vertices"];
-    if(!jsonVertices.is_array()) return;
-
-    json jsonVertexGroups = data["vertices_bones"];
-    if(!jsonVertexGroups.is_array()) return;
-
-    json jsonWeights = data["vertices_weights"];
-    if(!jsonWeights.is_array()) return;
-
-    json jsonNormals = data["normals"];
-    if(!jsonNormals.is_array()) return;
-    
-    json jsonFaces = data["faces"];
-    if(!jsonFaces.is_array()) return;
-    
-    uint32_t vertexOffset = 0;
-
-    for (int i = 0; i < jsonFaces.size(); i++) {
-        json jsonUV = jsonFaces[i]["uv_coords"];
-        if (!jsonUV.is_array()) return;
-    
-        json jsonIndices = jsonFaces[i]["indices"];
-        if (!jsonIndices.is_array()) return;
-    
-        uint32_t numVertsInFace = jsonIndices.size();
-    
-        // Add new vertex data
-        for (int j = 0; j < numVertsInFace; j++) {
-            uint32_t idx = uint32_t(jsonIndices[j]);
-            vertices.push_back(jsonVertices[idx * 3]);
-            vertices.push_back(jsonVertices[idx * 3 + 1]);
-            vertices.push_back(jsonVertices[idx * 3 + 2]);
-
-            vertices.push_back(jsonNormals[idx * 3]);
-            vertices.push_back(jsonNormals[idx * 3 + 1]);
-            vertices.push_back(jsonNormals[idx * 3 + 2]);
-    
-            glm::vec2 UV = ModelConvertUVs({jsonUV[j * 2], jsonUV[j * 2 + 1]}, modelsTexturePacker, textureName);
-            vertices.push_back(UV.x);
-            vertices.push_back(UV.y);
-            
-            glm::vec4 boneIDS = glm::vec4(-1);
-            glm::vec4 weights = glm::vec4(-1);
-
-            for(int k = 0; k < jsonVertexGroups[idx].size(); k++){
-                boneIDS[k] = model.boneData.boneIDs[jsonVertexGroups[idx][k]];
-            }
-
-            for(int k = 0; k < jsonWeights[idx].size(); k++){
-                weights[k] = jsonWeights[idx][k];
-            }
-
-            vertices.push_back(boneIDS.x);
-            vertices.push_back(boneIDS.y);
-            vertices.push_back(boneIDS.z);
-            vertices.push_back(boneIDS.w);
-            
-            vertices.push_back(weights.x);
-            vertices.push_back(weights.y);
-            vertices.push_back(weights.z);
-            vertices.push_back(weights.w);
-        }
-    
-        // Add triangle indices (using fan triangulation for quads or more)
-        for (int j = 1; j < numVertsInFace - 1; j++) {
-            indices.push_back(vertexOffset);
-            indices.push_back(vertexOffset + j);
-            indices.push_back(vertexOffset + j + 1);
-        }
-    
-        vertexOffset += numVertsInFace;
-    }
-
-    MeshSkinnedInitialize(&model.mesh, vertices.data(), vertices.size(), indices.data(), indices.size());
-    ModelLibraryAdd(&model, fileName);
-}
 
 void ModelAnimate(Model* model, AnimationManager* animationManager, std::string animationName, uint64_t TICK_COUNTER) {
     std::vector<AnimationBone> animationBones = AnimationFrameGet(animationManager, animationName, TICK_COUNTER);
@@ -262,43 +289,6 @@ void ModelAnimate(Model* model, AnimationManager* animationManager, std::string 
 void ModelSkinnedDraw(Model* model, glm::mat4& projectionView,  glm::mat4& transform){
     glUniformMatrix4fv(2, model->boneData.transforms.size(), GL_FALSE, glm::value_ptr(model->boneData.transforms[0]));
     MeshDraw(&model->mesh, projectionView, transform);
-}
-
-Model* ModelLibraryGet(std::string modelName){
-    if(!gModelLibrary) return nullptr;
-
-    auto it = gModelLibrary->modelIDs.find(modelName);
-    if (it == gModelLibrary->modelIDs.end()) return nullptr;
-
-    return &gModelLibrary->models[it->second];
-}
-
-void ModelLibraryInitialize(TexturePacker* modelsTexturePacker){
-    if(!gModelLibrary) return;
-
-    using json = nlohmann::json;
-    std::vector<std::string> files = ReadDirectory("resources/models");
-
-    for(std::string file : files){
-        size_t prefix_position = file.find_last_of(".");
-        if(prefix_position == std::string::npos) continue;
-
-        size_t jsonPrefix = file.find("json", prefix_position);
-        if(jsonPrefix == std::string::npos) continue;
-
-        std::fstream fileStream("resources/models/" + file);
-        json jsonData = json::parse(fileStream);
-
-        std::string textureName = jsonData["textures"][0];
-        bool skinned = jsonData["skinned"];
-        
-        if(skinned){
-            ModelLibraryLoadSkinned(file, modelsTexturePacker, textureName); 
-        }
-        else{
-            ModelLibraryLoad(file, modelsTexturePacker, textureName);
-        }
-    }
 }
 
 #endif

@@ -10,35 +10,39 @@ void EngineStartClock(){
     EngineStartTime = std::chrono::steady_clock::now();
 }
 
-struct Timer{
-    uint64_t lastTime;
-    uint64_t currentTime;
-    uint64_t interval;
-};
-
-uint64_t GetMillisecondsSinceStart() {
+//Returns time in ms since engine start
+uint64_t EngineGetTime() {
     auto now = std::chrono::steady_clock::now();
     auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(now - EngineStartTime).count();
     return uint64_t(ms);
 }
 
-bool TimerTick(Timer* timer){
-    timer->currentTime = GetMillisecondsSinceStart();
-    if(timer->currentTime >= timer->lastTime + timer->interval){
-        timer->lastTime = timer->currentTime;
-        return true;
-    }
-    return false;
-}
 
+class Timer{
+public:
+    uint64_t m_lastTime;
+    uint64_t m_currentTime;
+    uint64_t m_interval;
 
-bool TickTimerTick(Timer* timer){
-    timer->currentTime = TICK_COUNTER;
-    if(timer->currentTime >= timer->lastTime + timer->interval){
-        timer->lastTime = timer->currentTime;
-        return true;
+    
+    bool Tick(){
+        m_currentTime = EngineGetTime();
+        if(m_currentTime >= m_lastTime + m_interval){
+            m_lastTime = m_currentTime;
+            return true;
+        }
+        return false;
     }
-    return false;
-}
+
+    //Uses TICK_COUNTER instead of EngineStartTime
+    bool CounterTick(){
+        m_currentTime = TICK_COUNTER;
+        if(m_currentTime >= m_lastTime + m_interval){
+            m_lastTime = m_currentTime;
+            return true;
+        }
+        return false;
+    }
+};
 
 #endif

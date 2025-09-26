@@ -4,40 +4,42 @@
 #include "common.cpp"
 #include "window.cpp"
 
-struct Camera{
-    glm::mat4 viewMatrix;
-    glm::mat4 projectionMatrix;
-    glm::vec3 position;
-    glm::vec3 target;
-    glm::vec2 angle;
-    float zoomLevel = 3.0f;
-    float minZoom = 0.01f;
-    float maxZoom = 10.0f;
-    float fov = glm::radians(70.0f);
+class Camera{
+public:
+    glm::mat4 m_viewMatrix;
+    glm::mat4 m_projectionMatrix;
+    glm::vec3 m_position;
+    glm::vec3 m_target;
+    glm::vec2 m_angle;
+    float m_zoomLevel = 3.0f;
+    float m_minZoom = 0.01f;
+    float m_maxZoom = 10.0f;
+    float m_fov = glm::radians(70.0f);
+
+    void ApplyMouseInput(glm::vec2 mouseDelta) {
+        m_angle -= glm::vec2(glm::radians(mouseDelta.x), glm::radians(mouseDelta.y));
+
+        // Clamp vertical rotation to 90/-90 degrees
+        m_angle.y = glm::clamp(m_angle.y, glm::radians(-89.0f), glm::radians(89.0f));
+    }
+
+    void Update(glm::vec2 windowDimensions, glm::vec3& targetPosition, float& mouseScroll){
+        m_zoomLevel -= mouseScroll;
+        m_zoomLevel = glm::clamp(m_zoomLevel, m_minZoom, m_maxZoom);
+        
+        m_target = targetPosition;
+        m_position.x = glm::sin(m_angle.x) * m_zoomLevel * glm::cos(m_angle.y) + m_target.x;
+        m_position.y = ((m_angle.y <= 0.0f)? 1 : -1) * glm::sin(m_angle.y) * m_zoomLevel * glm::sin(m_angle.y) + m_target.y;
+        m_position.z = glm::cos(m_angle.x) * m_zoomLevel * glm::cos(m_angle.y) + m_target.z;
+
+        m_viewMatrix = glm::lookAt(m_position, m_target, glm::vec3(0, 1, 0));
+        m_projectionMatrix = glm::perspective(m_fov, windowDimensions.x/windowDimensions.y, 0.1f, 1000.0f);
+    }
+
+    glm::mat4 ViewProjectionMatrix(){
+        return m_projectionMatrix * m_viewMatrix;
+    }
 };
 
-void CameraApplyMouseInput(Camera* camera, glm::vec2 mouseDelta) {
-    camera->angle -= glm::vec2(glm::radians(mouseDelta.x), glm::radians(mouseDelta.y));
-
-    // Clamp vertical rotation to 90/-90 degrees
-    camera->angle.y = glm::clamp(camera->angle.y, glm::radians(-89.0f), glm::radians(89.0f));
-}
-
-void CameraUpdate(Camera* camera, glm::vec2 windowDimensions, glm::vec3& targetPosition, float& mouseScroll){
-    camera->zoomLevel -= mouseScroll;
-    camera->zoomLevel = glm::clamp(camera->zoomLevel, camera->minZoom, camera->maxZoom);
-    
-    camera->target = targetPosition;
-    camera->position.x = glm::sin(camera->angle.x) * camera->zoomLevel * glm::cos(camera->angle.y) + camera->target.x;
-    camera->position.y = ((camera->angle.y <= 0.0f)? 1 : -1) * glm::sin(camera->angle.y) * camera->zoomLevel * glm::sin(camera->angle.y) + camera->target.y;
-    camera->position.z = glm::cos(camera->angle.x) * camera->zoomLevel * glm::cos(camera->angle.y) + camera->target.z;
-
-    camera->viewMatrix = glm::lookAt(camera->position, camera->target, glm::vec3(0, 1, 0));
-    camera->projectionMatrix = glm::perspective(camera->fov, windowDimensions.x/windowDimensions.y, 0.1f, 1000.0f);
-}
-
-glm::mat4 CameraViewProjectionMatrix(Camera* camera){
-    return camera->projectionMatrix * camera->viewMatrix;
-}
 
 #endif

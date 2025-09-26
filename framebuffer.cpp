@@ -4,86 +4,83 @@
 #include "common.cpp"
 #include "texture.cpp"
 
-
-struct Framebuffer {
-    uint32_t id;
-    Texture texture;
-    uint32_t depthRenderbuffer;
-    uint32_t width;
-    uint32_t height;
-    bool hasDepthTest = false;
-};
-
-
-void FramebufferInitialize(Framebuffer* framebuffer, uint32_t width, uint32_t height, bool depthTesting = false){
-    framebuffer->width = width;
-    framebuffer->height = height;
-    framebuffer->hasDepthTest = depthTesting;
-
-    glGenFramebuffers(1, &framebuffer->id);
-    glBindFramebuffer(GL_FRAMEBUFFER, framebuffer->id);
-
-    glGenTextures(1, &framebuffer->texture.textureID);
-    glBindTexture(GL_TEXTURE_2D, framebuffer->texture.textureID);
-
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, framebuffer->width, framebuffer->height, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr); 
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, framebuffer->texture.textureID, 0);
-    
-    if(framebuffer->hasDepthTest){
-        glGenRenderbuffers(1, &framebuffer->depthRenderbuffer);
-        glBindRenderbuffer(GL_RENDERBUFFER, framebuffer->depthRenderbuffer);
-        glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, framebuffer->width, framebuffer->height);
-        glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, framebuffer->depthRenderbuffer);
-    }
-
-    // Check if framebuffer is complete
-    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
-        std::cerr << "ERROR::FRAMEBUFFER:: HUD Framebuffer is not complete!" << std::endl;
-    
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    glBindTexture(GL_TEXTURE_2D, 0);
-    glBindRenderbuffer(GL_RENDERBUFFER, 0);
-}
-
-
-void FramebufferResize(Framebuffer* framebuffer, uint32_t newWidth, uint32_t newHeight){
-    framebuffer->width = newWidth;
-    framebuffer->height = newHeight;
-    
-    // Update the texture size
-    glBindTexture(GL_TEXTURE_2D, framebuffer->texture.textureID);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, framebuffer->width, framebuffer->height, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
-
-    // Resize depth renderbuffer
-    if(framebuffer->hasDepthTest){
-        glBindRenderbuffer(GL_RENDERBUFFER, framebuffer->depthRenderbuffer);
-        glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, framebuffer->width, framebuffer->height);
-    }
-    
-    // Reattach the texture to the framebuffer
-    glBindFramebuffer(GL_FRAMEBUFFER, framebuffer->id);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, framebuffer->texture.textureID, 0);
-
-    // Check if framebuffer is complete
-    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
-        std::cerr << "ERROR::FRAMEBUFFER:: HUD Framebuffer is not complete after resizing!" << std::endl;
-    }
-
-    // Unbind framebuffer and texture
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    glBindTexture(GL_TEXTURE_2D, 0);
-    glBindRenderbuffer(GL_RENDERBUFFER, 0);
-}
-
-
-void FramebufferBind(uint32_t framebufferID){
+void GLFramebufferBind(uint32_t framebufferID){
     glBindFramebuffer(GL_FRAMEBUFFER, framebufferID);
 }
+
+class Framebuffer {
+public:
+    uint32_t m_ID;
+    uint32_t m_textureID;
+    uint32_t m_depthRenderbuffer;
+    uint32_t m_width;
+    uint32_t m_height;
+    bool m_hasDepthTest = false;
+
+    void Initialize(uint32_t width, uint32_t height, bool depthTesting = false){
+        m_width = width;
+        m_height = height;
+        m_hasDepthTest = depthTesting;
+
+        glGenFramebuffers(1, &m_ID);
+        glBindFramebuffer(GL_FRAMEBUFFER, m_ID);
+
+        glGenTextures(1, &m_textureID);
+        glBindTexture(GL_TEXTURE_2D, m_textureID);
+
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, m_width, m_height, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr); 
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, m_textureID, 0);
+        
+        if(m_hasDepthTest){
+            glGenRenderbuffers(1, &m_depthRenderbuffer);
+            glBindRenderbuffer(GL_RENDERBUFFER, m_depthRenderbuffer);
+            glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, m_width, m_height);
+            glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, m_depthRenderbuffer);
+        }
+
+        // Check if framebuffer is complete
+        if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+            std::cerr << "ERROR::FRAMEBUFFER:: HUD Framebuffer is not complete!" << std::endl;
+        
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        glBindTexture(GL_TEXTURE_2D, 0);
+        glBindRenderbuffer(GL_RENDERBUFFER, 0);
+    }
+    
+    void Resize(uint32_t newWidth, uint32_t newHeight){
+        m_width = newWidth;
+        m_height = newHeight;
+        
+        // Update the texture size
+        glBindTexture(GL_TEXTURE_2D, m_textureID);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, m_width, m_height, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+
+        // Resize depth renderbuffer
+        if(m_hasDepthTest){
+            glBindRenderbuffer(GL_RENDERBUFFER, m_depthRenderbuffer);
+            glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, m_width, m_height);
+        }
+        
+        // Reattach the texture to the framebuffer
+        glBindFramebuffer(GL_FRAMEBUFFER, m_ID);
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, m_textureID, 0);
+
+        // Check if framebuffer is complete
+        if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+            std::cerr << "ERROR::FRAMEBUFFER:: HUD Framebuffer is not complete after resizing!" << std::endl;
+        }
+
+        // Unbind framebuffer and texture
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        glBindTexture(GL_TEXTURE_2D, 0);
+        glBindRenderbuffer(GL_RENDERBUFFER, 0);
+    }
+};
 
 
 #endif

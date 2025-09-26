@@ -4,7 +4,6 @@
 #include "common.cpp"
 #include "render.cpp"
 
-
 struct Mesh{
     GLRenderObject renderable;
     void* vertexData;
@@ -80,7 +79,6 @@ void MeshDraw(Mesh* mesh, glm::mat4& projectionView, glm::mat4& transform){
     glUniformMatrix4fv(1, 1, GL_FALSE, glm::value_ptr(transform));
     GLDraw(&mesh->renderable, DRAW_ELEMENT, GL_TRIANGLES, mesh->indexSize);
 }
-
 
 void MeshFree(Mesh* mesh){
     if(!mesh->initialized) return;

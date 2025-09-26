@@ -5,15 +5,15 @@
 #include "common_graphics.cpp"
 
 struct Texture{
-    uint32_t textureID;
+    uint32_t ID;
     uint32_t width;
     uint32_t height;
 };
 
 void TextureFromFile(Texture* texture, const std::string& fileName, bool billinearFilter = true){
     std::string filePath = "resources/textures/" + fileName;
-    glGenTextures(1, &texture->textureID);
-    glBindTexture(GL_TEXTURE_2D, texture->textureID); 
+    glGenTextures(1, &texture->ID);
+    glBindTexture(GL_TEXTURE_2D, texture->ID); 
 
 
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);	
@@ -50,8 +50,8 @@ void TextureFromMemory(Texture* texture, uint8_t* textureData, uint32_t width, u
     texture->width = width;
     texture->height = height;
     
-    glGenTextures(1, &texture->textureID);
-    glBindTexture(GL_TEXTURE_2D, texture->textureID); 
+    glGenTextures(1, &texture->ID);
+    glBindTexture(GL_TEXTURE_2D, texture->ID); 
 
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);	
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
@@ -69,9 +69,9 @@ void TextureFromMemory(Texture* texture, uint8_t* textureData, uint32_t width, u
     glBindTexture(GL_TEXTURE_2D, 0);
 }
 
-void TextureUse(Texture* texture, uint32_t textureUnit){
+void TextureUse(uint32_t textureID, uint32_t textureUnit){
         glActiveTexture(textureUnit);
-        glBindTexture(GL_TEXTURE_2D, texture->textureID); 
+        glBindTexture(GL_TEXTURE_2D, textureID); 
 }
 
 
