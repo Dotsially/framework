@@ -20,7 +20,12 @@ struct Model{
 };
 
 class ModelLibrary{
-public:
+public: 
+    static ModelLibrary& Instance() {
+        static ModelLibrary instance = {};         
+        return instance;
+    }
+
     std::vector<Model> m_models;
     std::unordered_map<std::string, std::uint32_t> m_modelIDs;
 
@@ -268,8 +273,6 @@ private:
         }
     }
 };
-
-ModelLibrary* gModelLibrary = nullptr;
 
 void ModelAnimate(Model* model, AnimationManager* animationManager, std::string animationName, uint64_t TICK_COUNTER) {
     std::vector<AnimationBone> animationBones = AnimationFrameGet(animationManager, animationName, TICK_COUNTER);
