@@ -11,11 +11,13 @@ struct Ray{
     glm::vec3 direction;
 };
 
-Ray RaycastMouseWorldSpace(Camera* camera, Window* window, InputState* state) {
+Ray RaycastMouseWorldSpace(Camera* camera, InputState* state) {
+    Window& window = Window::Instance();
+
     // Convert the mouse position from window coordinates to Normalized Device Coordinates (NDC)
     // NDC ranges from -1 to 1 in both X and Y
-    float ndcX = (2.0f * state->mousePosition.x) / window->m_width - 1.0f;
-    float ndcY = 1.0f - (2.0f * state->mousePosition.y) / window->m_height; // Y is inverted because window coordinates start from top-left
+    float ndcX = (2.0f * state->mousePosition.x) / window.m_width - 1.0f;
+    float ndcY = 1.0f - (2.0f * state->mousePosition.y) / window.m_height; // Y is inverted because window coordinates start from top-left
 
     // Create a ray in clip space pointing into the screen (-1 on the Z axis)
     glm::vec4 rayClip = glm::vec4(ndcX, ndcY, -1.0f, 1.0f);

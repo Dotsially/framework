@@ -6,6 +6,11 @@
 
 class Window{
 public:
+    static Window& Instance() {
+        static Window instance = {};         
+        return instance;
+    }
+
     std::string m_title;
     SDL_GLContext m_glContext;
     SDL_Event m_event;

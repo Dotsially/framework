@@ -29,10 +29,13 @@ struct InputState{
 };
 
 
-void InputHandler(InputState& state, Window& window) {
+void InputHandler(InputState& state) {
     state.inputVector = glm::vec2(0);
     state.mouseScroll = 0;  // Reset scroll delta every frame
     state.windowRezised = false;
+
+
+    Window& window = Window::Instance();
 
     // Process all pending events
     while (SDL_PollEvent(&window.m_event)) {

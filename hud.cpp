@@ -51,7 +51,9 @@ public:
     GLRenderObject m_batch;
     Shader m_batchShader;
 
-    void Initialize(Window& window){
+    void Initialize(){
+        Window& window = Window::Instance();
+        
         m_width = window.m_width;
         m_height = window.m_height;
         m_vertexBuffer.resize(VERTEX_BUFFER_SIZE);

@@ -23,7 +23,9 @@ public:
         m_angle.y = glm::clamp(m_angle.y, glm::radians(-89.0f), glm::radians(89.0f));
     }
 
-    void Update(glm::vec2 windowDimensions, glm::vec3& targetPosition, float& mouseScroll){
+    void Update(glm::vec3& targetPosition, float& mouseScroll){
+        Window& window = window.Instance();
+
         m_zoomLevel -= mouseScroll;
         m_zoomLevel = glm::clamp(m_zoomLevel, m_minZoom, m_maxZoom);
         
@@ -33,7 +35,7 @@ public:
         m_position.z = glm::cos(m_angle.x) * m_zoomLevel * glm::cos(m_angle.y) + m_target.z;
 
         m_viewMatrix = glm::lookAt(m_position, m_target, glm::vec3(0, 1, 0));
-        m_projectionMatrix = glm::perspective(m_fov, windowDimensions.x/windowDimensions.y, 0.1f, 1000.0f);
+        m_projectionMatrix = glm::perspective(m_fov, window.m_width/float(window.m_height), 0.1f, 1000.0f);
     }
 
     glm::mat4 ViewProjectionMatrix(){
