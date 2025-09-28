@@ -4,8 +4,7 @@
 #include "common.cpp"
 #include "common_graphics.cpp"
 
-class TextureArray{
-public:
+struct TextureArray{
     uint32_t m_textureID;
     uint32_t m_textureUnitCount;
 

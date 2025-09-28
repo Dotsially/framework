@@ -18,8 +18,7 @@ uint64_t EngineGetTime() {
 }
 
 
-class Timer{
-public:
+struct Timer{
     uint64_t m_lastTime;
     uint64_t m_currentTime;
     uint64_t m_interval;

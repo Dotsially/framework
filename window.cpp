@@ -4,8 +4,7 @@
 #include "common.cpp"
 #include "common_graphics.cpp"
 
-class Window{
-public:
+struct Window{
     static Window& Instance() {
         static Window instance = {};         
         return instance;

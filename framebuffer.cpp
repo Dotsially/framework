@@ -8,8 +8,7 @@ void GLFramebufferBind(uint32_t framebufferID){
     glBindFramebuffer(GL_FRAMEBUFFER, framebufferID);
 }
 
-class Framebuffer {
-public:
+struct Framebuffer {
     uint32_t m_ID;
     uint32_t m_textureID;
     uint32_t m_depthRenderbuffer;

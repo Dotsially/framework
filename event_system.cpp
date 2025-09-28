@@ -18,8 +18,7 @@ struct PacketReceivedEvent {
     size_t size;
 };
 
-class EventSystem {
-public:
+struct EventSystem {
     using Listener = std::function<void(const Event&)>;
     std::unordered_map<EventType, std::vector<Listener>> listeners;
     

@@ -10,8 +10,7 @@ struct TextureData{
     glm::vec2 textureSize;
 };
 
-class TexturePacker {
-public:
+struct TexturePacker {
     #define PIXEL_SIZE 4
 
     uint8_t* m_memory;

@@ -8,7 +8,6 @@
 
 
 struct Viewport{
-public:
     #define QUAD_ARRAY_SIZE 30
 
     Framebuffer m_framebuffer;

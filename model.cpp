@@ -19,8 +19,7 @@ struct Model{
     Mesh mesh;
 };
 
-class ModelLibrary{
-public: 
+struct ModelLibrary{ 
     static ModelLibrary& Instance() {
         static ModelLibrary instance = {};         
         return instance;

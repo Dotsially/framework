@@ -9,8 +9,7 @@ struct SendResult {
     int errorCode; // 0 on success, or WSAGetLastError() on failure
 };
 
-struct ClientSocket{
-public:    
+struct ClientSocket{   
     SOCKET m_socket;
     sockaddr_in m_address;
     
@@ -85,8 +84,7 @@ struct ConnectionResult{
     ClientSocket socket;
 };
 
-class ServerSocket{
-public:
+struct ServerSocket{
     SOCKET m_socket;
     sockaddr_in m_address;
     uint16_t m_size;

@@ -4,8 +4,7 @@
 #include "common.cpp"
 #include "common_graphics.cpp"
 
-class Shader{
-public:    
+struct Shader{   
     uint32_t m_programID;
     
     void Create(std::string vertexPath, std::string fragmentPath){

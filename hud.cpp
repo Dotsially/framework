@@ -34,8 +34,7 @@ struct HudItem{
     bool isHeldDown = false;
 };
 
-class Hud{
-public:
+struct Hud{
     #define MAX_HUD_QUADS 1000
     #define VERTICES_PER_QUAD 6
     #define FLOATS_PER_VERTEX 9

@@ -11,8 +11,7 @@ struct BitmapGlyph {
     glm::vec2 offset;    // Offset from pen position
 };
 
-class BitmapFont {
-public:
+struct BitmapFont {
     std::unordered_map<char, BitmapGlyph> m_glyphs;
     
     void Load(TexturePacker* packer, std::string fontFileName) {

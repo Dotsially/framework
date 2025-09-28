@@ -4,8 +4,7 @@
 #include "common.cpp"
 #include "window.cpp"
 
-class Camera{
-public:
+struct Camera{
     glm::mat4 m_viewMatrix;
     glm::mat4 m_projectionMatrix;
     glm::vec3 m_position;
